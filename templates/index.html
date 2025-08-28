@@ -1,0 +1,70 @@
+
+<!DOCTYPE html>
+<html>
+<head><title>Pi Script Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+<div class="container">
+<h1>🖥️ Raspberry Pi Script Dashboard</h1>
+<div class="d-flex gap-2 mb-3">
+  <a href="/add" class="btn btn-success">+ Add Script</a>
+  <form action="/add-sample" method="POST" class="d-inline">
+    <button type="submit" class="btn btn-outline-secondary">Add Sample</button>
+  </form>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<table class="table table-bordered">
+	<tr><th>Script</th><th>Schedule</th><th>Last Run</th><th>Actions</th></tr>
+{% for job in jobs %}
+<tr>
+  <td>{{ job.name }}</td>
+  <td>{{ job.schedule }}</td>
+  <td>
+    {% if job.last_run_epoch is not none %}
+      <span class="utc-ts" data-epoch="{{ job.last_run_epoch }}"></span>
+    {% else %}
+      Never
+    {% endif %}
+  </td>
+  <td>
+    <a href="/run/{{ job.name }}" class="btn btn-sm btn-primary">Run</a>
+    <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a>
+    <a href="/purge/{{ job.name }}" class="btn btn-sm btn-danger">Purge Logs</a>
+    <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
+    <a href="/delete/{{ job.name }}" class="btn btn-sm btn-danger">Delete</a>
+  </td>
+</tr>
+{% endfor %}
+</table>
+</div>
+<script>
+  function formatLocal(dt) {
+    const m = dt.getMonth() + 1;          // 1-12
+    const d = dt.getDate();               // 1-31
+    const y = dt.getFullYear();           // 2025
+    let h = dt.getHours();                // 0-23
+    const ampm = h >= 12 ? 'pm' : 'am';
+    h = h % 12 || 12;                     // 12-hour, no leading zero
+    const min = String(dt.getMinutes()).padStart(2, '0');
+    const sec = String(dt.getSeconds()).padStart(2, '0');
+    return `${m}/${d}/${y} ${h}:${min}:${sec}${ampm}`;   // e.g., 1/1/2025 2:05pm
+  }
+
+  document.querySelectorAll('.utc-ts').forEach(el => {
+    const epoch = Number(el.dataset.epoch);
+    if (Number.isFinite(epoch)) {
+      const dt = new Date(epoch * 1000);  // epoch seconds -> ms
+      el.textContent = formatLocal(dt);   // browser local timezone
+    } else {
+      el.textContent = '';
+    }
+  });
+</script>
+</body></html>

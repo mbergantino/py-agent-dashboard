@@ -1,0 +1,40 @@
+
+<!DOCTYPE html><html><head><title>Edit</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+<body class="p-4"><div class="container">
+<h3>Edit Script: {{ name }}.py</h3>
+<form method="POST">
+  <div class="mb-3"><label>Cron Schedule</label>
+  <input type="text" name="schedule" class="form-control" value="{{ schedule }}" placeholder="*/5 * * * * (to run every 5 minutes)">
+  <div class="form-text">
+    Choose a preset below or enter a custom cron expression.
+  </div>
+  </div>
+  
+  <!-- place this above the schedule input (or right below the heading) -->
+  <div class="mb-3">
+  <label class="form-label">Quick Schedule Presets</label>
+  <div class="btn-group mb-2" role="group" aria-label="Presets">
+    <button type="button" class="btn btn-outline-secondary preset" data-cron="* * * * *">Every minute</button>
+    <button type="button" class="btn btn-outline-secondary preset" data-cron="0 * * * *">Every hour</button>
+    <button type="button" class="btn btn-outline-secondary preset" data-cron="0 0 * * *">Every day @ midnight</button>
+    <button type="button" class="btn btn-outline-secondary preset" data-cron="0 0 * * 0">Midnight on Sunday</button>
+    <button type="button" class="btn btn-outline-danger preset" data-cron="DISABLED">Disable</button>
+  </div>
+
+  <div class="mb-3"><label>Script Content</label>
+  <textarea name="script" rows="15" class="form-control">{{ content }}</textarea></div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="/" class="btn btn-secondary">Cancel</a>
+</form>
+</div>
+<script>
+  document.querySelectorAll('.preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cron = btn.dataset.cron || '';
+      const input = document.querySelector('input[name="schedule"]');
+      if (input) input.value = cron;
+    });
+  });
+</script>
+</body></html>
