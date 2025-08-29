@@ -1,4 +1,4 @@
-# Pi Cron Dashboard
+# Py Script Dashboard
 
 A lightweight, local-only web UI for managing and monitoring Python scripts on a Raspberry Pi (or any Debian-like box). Add/edit scripts in your browser, attach cron schedules, view logs with auto-refresh, and run jobs on demand. Includes a resilient runner that auto-installs missing Python dependencies.
 
