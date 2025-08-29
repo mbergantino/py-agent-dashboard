@@ -6,12 +6,14 @@
 </head>
 <body class="p-4">
 <div class="container">
-<h1>🖥️ Raspberry Pi Script Dashboard</h1>
+<h1>🖥️ Raspberry Py Dashboard</h1>
 <div class="d-flex gap-2 mb-3">
   <a href="/add" class="btn btn-success">+ Add Script</a>
   <form action="/add-sample" method="POST" class="d-inline">
-    <button type="submit" class="btn btn-outline-secondary">Add Sample</button>
+    <button type="submit" class="btn btn-outline-dark">Add Sample</button>
   </form>
+  <!-- Service log shortcuts -->
+  <a href="/services" class="btn btn-outline-dark">Service logs</a>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -34,7 +36,9 @@
     {% endif %}
   </td>
   <td>
-    <a href="/run/{{ job.name }}" class="btn btn-sm btn-primary">Run</a>
+    <form action="{{ url_for('run_now', name=job.name) }}" method="post" class="d-inline">
+      <button type="submit" class="btn btn-sm btn-primary">Run</button>
+    </form>
     <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a>
     <a href="/purge/{{ job.name }}" class="btn btn-sm btn-danger">Purge Logs</a>
     <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
@@ -66,5 +70,19 @@
       el.textContent = '';
     }
   });
+</script>
+<script>
+  // Server tells us if there’s at least one scheduled job
+  const hasScheduled = {{ 'true' if has_scheduled else 'false' }};
+
+  if (hasScheduled) {
+    // refresh every 15s; tweak if you want
+    const REFRESH_MS = 15000;
+    setInterval(() => {
+      // If the user is editing a form on index, you can skip reload here
+      // For now, keep it simple and always refresh:
+      location.reload();
+    }, REFRESH_MS);
+  }
 </script>
 </body></html>

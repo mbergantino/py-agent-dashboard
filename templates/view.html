@@ -19,10 +19,12 @@
 </head>
 <body class="p-4">
 <div class="container">
-  <h3 class="mb-3">Log for {{ name }}.py</h3>
+  <div class="d-flex align-items-center mb-3">
+    <h3 class="mb-0">Log for {{ name }}.py</h3>
+    <a href="/" class="btn btn-secondary btn-sm ms-auto">Back</a>
+  </div>
 
   <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-    <a href="/" class="btn btn-secondary btn-sm">Back</a>
     <button id="btn-refresh" class="btn btn-primary btn-sm">Refresh</button>
 
     <div class="form-check ms-2">

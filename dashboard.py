@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, abort, jsonify
 from collections import deque
 from crontab import CronTab
 from datetime import datetime, timezone
-import os,re
+import os, re, sys, subprocess, time
 from pathlib import Path
 
 app = Flask(__name__)
@@ -15,10 +15,20 @@ LOGS_DIR    = (BASE_DIR / "logs").resolve()
 RUNNER      = f"/usr/bin/python3 {BASE_DIR}/runner.py"
 BOOT_SYNC_DONE = False
 
+# Service Log vars
+SAFE_UNIT = re.compile(r"^[\w\-.@]+$")  # e.g., flask-dashboard
+SERVICE_CACHE = {"expires": 0.0, "items": []}
+SERVICE_CACHE_TTL = 30.0  # seconds
+
+# how long to wait (max) for the log mtime to change after launch
+RUN_WAIT_MAX  = 8.0   # seconds
+RUN_WAIT_STEP = 0.25  # polling interval
+
 # Make directory structures needed
 SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Sample App
 SAMPLE_NAME = "helloworld"
 SAMPLE_SCRIPT="""
 from datetime import datetime
@@ -37,7 +47,8 @@ def _boot_sync_once():
 @app.route("/")
 def index():
     jobs = rebuild_jobs()
-    return render_template("index.html", jobs=jobs)
+    has_scheduled = any(j.get("has_cron") for j in jobs)
+    return render_template("index.html", jobs=jobs, has_scheduled=has_scheduled)
 
 @app.route("/view/<name>")
 def view(name):
@@ -54,13 +65,54 @@ def purge_log(name):
             pass
     return redirect(url_for("index"))
 
-@app.route("/run/<name>")
-def run_now(name):
-    script_path = os.path.join(SCRIPTS_DIR, f"{name}.py")
+def _log_mtime_epoch(name: str) -> int:
     log_path = os.path.join(LOGS_DIR, f"{name}.log")
-    os.system(f"{RUNNER} {script_path} >> {log_path} 2>&1 &")
-    #os.system(f"/usr/bin/python3 {script_path} >> {log_path} 2>&1 &")
-    flash(f"{name}.py launched manually", "info")
+    try:
+        return int(os.path.getmtime(log_path))
+    except FileNotFoundError:
+        return 0
+
+def _launch_job(name: str):
+    """Start the script via runner.py, append output to its log, return (ok, msg)."""
+    script_path = os.path.join(SCRIPTS_DIR, f"{name}.py")
+    log_path    = os.path.join(LOGS_DIR,    f"{name}.log")
+
+    if not os.path.exists(script_path):
+        return False, f"{name}.py not found"
+
+    os.makedirs(LOGS_DIR, exist_ok=True)
+                                                                     
+    # make runner write immediately
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+
+    # non-blocking; child writes to log file
+    with open(log_path, "a") as lf:
+        subprocess.Popen(
+            [sys.executable, str(BASE_DIR / "runner.py"), script_path],
+            stdout=lf, stderr=subprocess.STDOUT,
+            cwd=os.path.dirname(script_path) or ".",
+            close_fds=True, env=env,
+        )
+    return True, f"{name}.py launched"
+
+@app.route("/run/<name>", methods=["POST", "GET"])
+def run_now(name):
+    """Trigger → wait for log to advance (or timeout) → flash → redirect to index."""
+    prev = _log_mtime_epoch(name)
+    ok, msg = _launch_job(name)
+    if not ok:
+        flash(msg, "danger")
+        return redirect(url_for("index"))
+
+    # wait briefly for the log mtime to change
+    deadline = time.time() + RUN_WAIT_MAX
+    while time.time() < deadline:
+        if _log_mtime_epoch(name) > prev:
+            break
+        time.sleep(RUN_WAIT_STEP)
+
+    flash(msg, "info")
     return redirect(url_for("index"))
 
 @app.route("/edit/<name>", methods=["GET", "POST"])
@@ -182,6 +234,91 @@ def api_log(name):
         tail_bytes = b"".join(deque(f, maxlen=lines))
     text = tail_bytes.decode("utf-8", errors="replace")
     return Response(text, mimetype="text/plain", headers={"Cache-Control": "no-store"})
+
+@app.get("/api/service-log/<unit>")
+def api_service_log(unit):
+    if not SAFE_UNIT.match(unit):
+        abort(400, "invalid unit name")
+    try:
+        lines = int(request.args.get("lines", 500))
+    except ValueError:
+        lines = 500
+
+    # Tail last N lines from the journal (system scope)
+    proc = subprocess.run(
+        ["journalctl", "-u", unit, "-n", str(lines), "--no-pager", "--output=short-iso"],
+        capture_output=True, text=True
+    )
+    text = proc.stdout if proc.returncode == 0 else proc.stderr
+    return Response(text or "", mimetype="text/plain", headers={"Cache-Control": "no-store"})
+
+def _systemctl(*args):
+    """Run systemctl and return (rc, stdout, stderr)."""
+    proc = subprocess.run(["systemctl", *args], capture_output=True, text=True)
+    return proc.returncode, proc.stdout, proc.stderr
+
+def _unit_exists(unit: str) -> bool:
+    rc, _, _ = _systemctl("status", unit, "--no-pager")
+    return rc == 0
+
+def _owns_unit(unit: str) -> bool:
+    """
+    Heuristic: show only services related to this app.
+    We check systemd metadata and include if:
+      - WorkingDirectory contains BASE_DIR, OR
+      - ExecStart contains BASE_DIR
+    """
+    if not SAFE_UNIT.match(unit):
+        return False
+    rc, out, _ = _systemctl("show", unit, "-p", "WorkingDirectory", "-p", "ExecStart")
+    if rc != 0:
+        return False
+    wd = ""
+    es = ""
+    for line in out.splitlines():
+        if line.startswith("WorkingDirectory="):
+            wd = line.split("=", 1)[1].strip()
+        elif line.startswith("ExecStart="):
+            es = line.split("=", 1)[1].strip()
+    base = str(BASE_DIR)
+    return (wd and base in wd) or (es and base in es)
+
+def list_related_services():
+    """
+    List service units and filter to ones “owned” by this app directory.
+    """
+    rc, out, _ = _systemctl("list-units", "--type=service", "--all", "--no-legend", "--no-pager")
+    if rc != 0:
+        return []
+
+    units = []
+    for line in out.splitlines():
+        # Format: "<unit> <load> <active> <sub> <description...>"
+        # Split on whitespace for first field (unit name)
+        parts = line.strip().split(None, 1)
+        if not parts:
+            continue
+        unit = parts[0]
+        if unit.endswith(".service") and _owns_unit(unit):
+            units.append(unit)
+
+    # Also include well-known units if present (in case they’re inactive at the moment)
+    for extra in ("flask-dashboard.service", "crowdstrike-watch.service"):
+        if extra not in units and _unit_exists(extra) and _owns_unit(extra):
+            units.append(extra)
+
+    return sorted(set(units))
+
+# --- API: return JSON list of services we’ll allow in the dropdown ---
+@app.get("/api/services")
+def api_services():
+    return jsonify(list_related_services())
+
+# --- Page: service logs viewer with dynamic dropdown ---
+@app.route("/services")
+def services():
+    # Page loads with no selection; JS will fetch /api/services to populate the dropdown dynamically.
+    return render_template("services.html")
 
 def _fmt_mtime(p: Path):
     if p.exists():
