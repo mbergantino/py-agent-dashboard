@@ -1,0 +1,38 @@
+/******** Global mobile polish ********/
+/* iOS: don't auto-zoom */
+html { -webkit-text-size-adjust: 100%; }
+
+/* Allow wrapping everywhere, even inside long paths/IDs */
+.script-cell,
+.last-run-cell {
+  white-space: normal;
+  word-break: break-word;     /* break long words */
+  overflow-wrap: anywhere;    /* extra safety */
+}
+
+/* Use full width container on mobile so content aligns with logbox/back */
+.container, .container-fluid { padding-left: .75rem; padding-right: .75rem; }
+
+/* Controls: keep one line on md+, allow wrap on small */
+.controls { gap: .5rem; }
+
+/* Make the select shrink before wrapping */
+.svc-select {
+  flex: 1 1 auto;          /* allow grow/shrink with flex row */
+  min-width: 10rem;        /* don’t get too tiny on desktop */
+  width: clamp(12rem, 30vw, 26rem);
+}
+
+@media (max-width: 576px) {
+  .btn, .form-control, .form-select { min-height: 44px; }   /* touch target */
+  .btn-group .btn { min-height: 44px; }
+  .btn-wrap { width: 100%; }                                /* forces buttons onto next line */
+  .svc-select { min-width: 8rem; width: min(65vw, 18rem); } /* Make the dropdown a bit narrower so buttons don't hit the edge */
+  .stack-sm > * { width: 100% !important; }                 /* full-width buttons/inputs */
+  .table td, .table th { vertical-align: middle; padding: .5rem; }
+}
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+.code-block {
+  background:#f9f9f9; border:1px solid #ddd; border-radius:.5rem; padding:12px;
+  white-space:pre-wrap; word-break:break-word; overflow:auto;
+}

@@ -3,9 +3,10 @@
 <html>
 <head><title>Py Script Dashboard</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="p-4">
-<div class="container">
+<div class="container-fluid px-2 px-md-3">
 <h1>🖥️ Py Script Dashboard</h1>
 <div class="d-flex gap-2 mb-3">
   <a href="/add" class="btn btn-success">+ Add Script</a>
@@ -13,7 +14,7 @@
     <button type="submit" class="btn btn-outline-dark">Add Sample</button>
   </form>
   <!-- Service log shortcuts -->
-  <a href="/services" class="btn btn-outline-dark">Service logs</a>
+  <a href="/services" class="btn btn-outline-dark">Service Logs</a>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -22,38 +23,67 @@
     {% endfor %}
   {% endif %}
 {% endwith %}
-<table class="table table-bordered">
-	<tr><th>Script</th><th>Schedule</th><th>Last Run</th><th>Actions</th></tr>
-{% for job in jobs %}
-<tr>
-  <td>{{ job.name }}</td>
-  <td>{{ job.schedule }}</td>
-  <td>
-    {% if job.last_run_epoch is not none %}
-      <span class="utc-ts" data-epoch="{{ job.last_run_epoch }}"></span>
-    {% else %}
-      Never
-    {% endif %}
-  </td>
-  <td>
-    <form action="{{ url_for('run_now', name=job.name) }}" method="post" class="d-inline">
-      <button type="submit" class="btn btn-sm btn-primary">Run</button>
-    </form>
-    <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a>
-    <form class="d-inline" action="/purge/{{ job.name }}"
-        onsubmit="return confirm('Purge logs for {{ job.name }}? This cannot be undone.');">
-      <button type="submit" class="btn btn-sm btn-outline-danger">Purge Logs</button>
-    </form>
-    <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
-    <form class="d-inline" method="POST" action="/delete/{{ job.name }}"
-        onsubmit="return confirm('Delete {{ job.name }}.py (including its cron entry and log)? This cannot be undone.');">
-      <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-    </form>
-  </td>
-</tr>
-{% endfor %}
-</table>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th>Script</th>
+        <th class="text-nowrap">Schedule</th>
+        <th class="text-nowrap">Last Run</th>
+        <th class="text-nowrap">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td class="text-break script-cell">{{ job.name }}</td>
+        <td class="text-break"><span class="badge bg-light text-dark">{{ job.schedule or "DISABLED" }}</span></td>
+        <td class="last-run-cell">
+          {% if job.last_run_epoch is not none %}
+            <span class="utc-ts" data-epoch="{{ job.last_run_epoch }}"></span>
+          {% else %} Never {% endif %}
+        </td>
+        <td class="text-start">
+          <!-- md+ : full buttons -->
+          <div class="d-none d-md-inline-flex gap-1">
+            <a href="/run/{{ job.name }}" class="btn btn-sm btn-primary">Run</a>
+            <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a>
+            <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
+            <form method="POST" action="/purge/{{ job.name }}" class="d-inline"
+                  onsubmit="return confirm('Purge logs for {{ job.name }}?');">
+              <button class="btn btn-sm btn-outline-danger">Purge</button>
+            </form>
+            <form method="POST" action="/delete/{{ job.name }}" class="d-inline"
+                  onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
+              <button class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </div>
+          <!-- xs/sm : dropdown menu -->
+          <div class="dropdown d-inline-block d-md-none">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
+            <div class="dropdown-menu">
+              <a class="dropdown-item" href="/run/{{ job.name }}">Run</a>
+              <a class="dropdown-item" href="/view/{{ job.name }}">Logs</a>
+              <a class="dropdown-item" href="/edit/{{ job.name }}">Edit</a>
+              <form method="POST" action="/purge/{{ job.name }}"
+                    onsubmit="return confirm('Purge logs for {{ job.name }}?');">
+                <button class="dropdown-item text-danger" type="submit">Purge logs</button>
+              </form>
+              <form method="POST" action="/delete/{{ job.name }}"
+                    onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
+                <button class="dropdown-item text-danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
 </div>
+
+</div>
+
 <script>
   function formatLocal(dt) {
     const m = dt.getMonth() + 1;          // 1-12
@@ -82,8 +112,8 @@
   const hasScheduled = {{ 'true' if has_scheduled else 'false' }};
 
   if (hasScheduled) {
-    // refresh every 15s; tweak if you want
-    const REFRESH_MS = 15000;
+    // refresh every 60s; tweak if you want
+    const REFRESH_MS = 60000;
     setInterval(() => {
       // If the user is editing a form on index, you can skip reload here
       // For now, keep it simple and always refresh:
