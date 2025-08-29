@@ -40,9 +40,15 @@
       <button type="submit" class="btn btn-sm btn-primary">Run</button>
     </form>
     <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a>
-    <a href="/purge/{{ job.name }}" class="btn btn-sm btn-danger">Purge Logs</a>
+    <form class="d-inline" action="/purge/{{ job.name }}"
+        onsubmit="return confirm('Purge logs for {{ job.name }}? This cannot be undone.');">
+      <button type="submit" class="btn btn-sm btn-outline-danger">Purge Logs</button>
+    </form>
     <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
-    <a href="/delete/{{ job.name }}" class="btn btn-sm btn-danger">Delete</a>
+    <form class="d-inline" method="POST" action="/delete/{{ job.name }}"
+        onsubmit="return confirm('Delete {{ job.name }}.py (including its cron entry and log)? This cannot be undone.');">
+      <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+    </form>
   </td>
 </tr>
 {% endfor %}
