@@ -56,13 +56,14 @@ def view(name):
     content = open(log_file).read() if os.path.exists(log_file) else "No logs found."
     return render_template("view.html", name=name, content=content)
 
-@app.route("/purge/<name>")
+@app.post("/purge/<name>")
 def purge_log(name):
     log_file = os.path.join(LOGS_DIR, f"{name}.log")
 
     if os.path.exists(log_file): 
         with open(log_file, 'w') as file:
             pass
+        flash(f"Log purged for script {name}", "info")
     return redirect(url_for("index"))
 
 def _log_mtime_epoch(name: str) -> int:
