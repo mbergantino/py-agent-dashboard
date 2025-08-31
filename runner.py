@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-import sys, os, re, subprocess, runpy, importlib, ast
+import sys, os, re, subprocess, runpy, importlib, ast, json, time
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+CONFIG_DIR = (BASE_DIR / "config").resolve()
+LOGS_DIR = (BASE_DIR / "logs").resolve()
 
 ALLOW_AUTO_INSTALL = True
 PYTHON = sys.executable
@@ -185,8 +189,48 @@ def run_until_stable(path: str) -> int:
                 continue  # try again since we installed something
             log(f"install failed for: {missing}")
             raise
+        except SystemExit as se:
+            # sys.exit(n) inside the script bubbles up here
+            code = se.code
+            if code is None: return 0
+            if isinstance(code, int): return code
+            return 1
+        except Exception as e:
+            log(f"script crashed: {e}")
+            return 1
     log("max passes reached; still failing due to cascading imports")
     return 1
+
+# SUPPORT CONFIG (FOR AUTO-DELETE ON SUCCESS)
+
+def read_run_until_success(name: str) -> bool:
+    p = CONFIG_DIR / f"{name}.json"
+    try:
+        cfg = json.load(open(p, "r", encoding="utf-8"))
+        return bool(cfg.get("run_until_success", False))
+    except Exception:
+        return False
+
+def log_event(kind, name=None, **fields):
+    try:
+        entry = {"ts": int(time.time()), "kind": kind, "name": name, **fields}
+        (LOGS_DIR).mkdir(parents=True, exist_ok=True)
+        with open(LOGS_DIR / "events.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+def disable_cron_by_comment(comment: str):
+    """Remove any crontab lines that end with '# comment' (python-crontab creates that)."""
+    try:
+        cur = subprocess.check_output(["crontab", "-l"], text=True)
+    except subprocess.CalledProcessError:
+        cur = ""
+    pat = re.compile(rf".*#\s*{re.escape(comment)}\s*$")
+    kept = [ln for ln in cur.splitlines() if not pat.match(ln)]
+    new = ("\n".join(kept) + "\n") if kept else ""
+    subprocess.run(["crontab", "-"], input=new, text=True, check=True)
+    log(f"disabled schedule for {comment}")
 
 def main():
     if len(sys.argv) < 2:
@@ -202,7 +246,19 @@ def main():
         log(f"requirements header: {', '.join(pre)}")
     ensure_importables(pre + parse_imports(script_path))
 
-    sys.exit(run_until_stable(script_path))
+    #sys.exit(run_until_stable(script_path))
+    name = Path(script_path).stem
+    rc = run_until_stable(script_path)   # make this return the final exit code (0/!=0)
+
+    # If this was a cron-triggered run and the job succeeded, optionally disable cron
+    if os.environ.get("RUN_CONTEXT") == "cron" and rc == 0 and read_run_until_success(name):
+        try:
+            disable_cron_by_comment(name)   # comment=name when the job was created
+            log_event("schedule_disabled_after_success", name=name)
+        except Exception as e:
+            log(f"failed to disable cron for {name}: {e}")
+
+    sys.exit(rc)
 
 if __name__ == "__main__":
     main()

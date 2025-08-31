@@ -47,7 +47,7 @@
                   <form method="POST" action="/purge/{{ job.name }}" onsubmit="return confirm('Purge logs for {{ job.name }}?');">
                     <button class="dropdown-item text-danger" type="submit">Purge logs</button>
                   </form>
-                  <form method="POST" action="/delete/{{ job.name }}" onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
+                  <form method="DELETE" action="/delete/{{ job.name }}" onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
                     <button class="dropdown-item text-danger" type="submit">Delete</button>
                   </form>
                 </div>

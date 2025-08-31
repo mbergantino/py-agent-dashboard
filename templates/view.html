@@ -76,14 +76,10 @@
         </div>
       </div>
     </div>
-    <div id="logbox" aria-live="polite"></div>
+    <div id="logbox" aria-live="polite">{{ content|e }}</div>
   </div>
   <script>
-  const name_ = {
-    {
-      name | tojson
-    }
-  };
+  const name_ = {{ name | tojson }};
   const logbox = document.getElementById('logbox');
   const btnRefresh = document.getElementById('btn-refresh');
   const btnBottom = document.getElementById('btn-bottom');

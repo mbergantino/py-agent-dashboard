@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, Res
 from collections import deque
 from crontab import CronTab
 from datetime import datetime, timezone
-import os, re, sys, subprocess, time
+import os, re, sys, subprocess, time, json
 from pathlib import Path
 
 app = Flask(__name__)
@@ -12,6 +12,7 @@ user_cron = CronTab(user=True)
 BASE_DIR    = Path(__file__).resolve().parent
 SCRIPTS_DIR = (BASE_DIR / "scripts").resolve()
 LOGS_DIR    = (BASE_DIR / "logs").resolve()
+CONFIG_DIR  = (BASE_DIR / "config").resolve()
 RUNNER      = f"/usr/bin/python3 {BASE_DIR}/runner.py"
 BOOT_SYNC_DONE = False
 
@@ -27,6 +28,7 @@ RUN_WAIT_STEP = 0.25  # polling interval
 # Make directory structures needed
 SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Sample App
 SAMPLE_NAME = "helloworld"
@@ -36,6 +38,20 @@ print(f"{datetime.now()} Hello from the Raspberry Pi Dashboard!")
 """
 
 print(f" * Will write new scripts to {SCRIPTS_DIR} and logs to {LOGS_DIR}")
+
+def _cfg_path(name): return CONFIG_DIR / f"{name}.json"
+
+def load_cfg(name):
+    p = _cfg_path(name)
+    if p.exists():
+        try: return json.load(open(p, "r", encoding="utf-8"))
+        except Exception: return {}
+    return {}
+
+def save_cfg(name, data: dict):
+    _cfg_path(name).parent.mkdir(parents=True, exist_ok=True)
+    with open(_cfg_path(name), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
 
 @app.before_request
 def _boot_sync_once():
@@ -89,6 +105,8 @@ def _launch_job(name: str):
 
     # non-blocking; child writes to log file
     with open(log_path, "a") as lf:
+        env = os.environ.copy()
+        env.pop("RUN_CONTEXT", None)   # ensure not set
         subprocess.Popen(
             [sys.executable, str(BASE_DIR / "runner.py"), script_path],
             stdout=lf, stderr=subprocess.STDOUT,
@@ -120,43 +138,42 @@ def run_now(name):
 def edit(name):
     script_path = os.path.join(SCRIPTS_DIR, f"{name}.py")
     job = next((j for j in user_cron if j.comment == name), None)
+    cfg = load_cfg(name)
 
     if request.method == "POST":
         new_content = request.form["script"]
         schedule = request.form.get("schedule", "").strip()
+        run_until_success = request.form.get("run_until_success") == "on"
+        save_cfg(name, { **cfg, "run_until_success": run_until_success })
 
-        # Save script contents
-        with open(script_path, "w") as f:
+        with open(script_path, "w", encoding="utf-8") as f:
             f.write(new_content)
 
-        # Handle "DISABLED" = remove cron job if present
+        # handle DISABLED, else (re)create job
         if schedule.upper() == "DISABLED":
-            if job:
-                user_cron.remove(job)
-                user_cron.write()
-            flash(f"{name}.py saved; schedule is DISABLED", "warning")
+            if job: user_cron.remove(job); user_cron.write()
+            flash(f"{name}.py saved; schedule DISABLED", "warning")
             return redirect(url_for("index"))
 
-        # Otherwise, (re)create cron job with the provided expression
         try:
-            if job:
-                user_cron.remove(job)
-            new_job = user_cron.new(
-                command=f"{RUNNER} {script_path} >> {LOGS_DIR}/{name}.log 2>&1",
-                #command=f"/usr/bin/python3 {script_path} >> {LOGS_DIR}/{name}.log 2>&1",
-                comment=name
-            )
-            new_job.setall(schedule)  # raises if invalid
+            if job: user_cron.remove(job)
+            # IMPORTANT: mark cron context so runner knows this run came from cron
+            cron_cmd = f"RUN_CONTEXT=cron /usr/bin/python3 {BASE_DIR}/runner.py {script_path} >> {LOGS_DIR}/{name}.log 2>&1"
+            new_job = user_cron.new(command=cron_cmd, comment=name)
+            new_job.setall(schedule)
             user_cron.write()
             flash(f"{name}.py saved; schedule set to '{schedule}'", "success")
         except Exception as e:
             flash(f"Invalid cron schedule: '{schedule}' ({e})", "danger")
+
         return redirect(url_for("index"))
 
-    # GET: render editor
+    # GET
     current_schedule = (job.slices if job else "DISABLED")
     content = open(script_path).read() if os.path.exists(script_path) else ""
-    return render_template("edit.html", name=name, content=content, schedule=current_schedule)
+    return render_template("edit.html",
+        name=name, content=content, schedule=current_schedule,
+        run_until_success=bool(cfg.get("run_until_success", False)))
 
 @app.route("/add", methods=["GET", "POST"])
 def add():
@@ -200,7 +217,7 @@ def add_sample():
 
     return redirect(url_for("index"))
 
-@app.route("/delete/<name>")
+@app.route("/delete/<name>", methods=["POST","DELETE"])
 def delete(name):
     script_path = os.path.join(SCRIPTS_DIR, f"{name}.py")
     log_path = os.path.join(LOGS_DIR, f"{name}.log")
@@ -215,6 +232,12 @@ def delete(name):
         if job.comment == name:
             user_cron.remove(job)
     user_cron.write()
+    
+    cfgp = _cfg_path(name)
+    if cfgp.exists():
+        try: os.remove(cfgp)
+        except Exception: pass
+
     flash(f"{name}.py and its cron job deleted", "warning")
     return redirect(url_for("index"))
 
@@ -354,6 +377,7 @@ def rebuild_jobs():
     for script in sorted(SCRIPTS_DIR.glob("*.py")):
         name = script.stem
         log_path = LOGS_DIR / f"{name}.log"
+        cfg = load_cfg(name)
         jobs[name] = {
             "name": name,
             "script_path": str(script),
@@ -362,7 +386,8 @@ def rebuild_jobs():
             "schedule": None,
             "last_run": _fmt_mtime(log_path),
             "last_run_epoch": last_modified_epoch(log_path),
-            "log_path": str(log_path)
+            "log_path": str(log_path),
+            "run_until_success": bool(cfg.get("run_until_success", False))
         }
 
     # 2) Merge in cron entries that reference scripts under SCRIPTS_DIR
@@ -379,6 +404,7 @@ def rebuild_jobs():
                         script_in_cmd = tok
                         break
                 log_path = LOGS_DIR / f"{name}.log"
+                cfg = load_cfg(name)
                 jobs[name] = {
                     "name": name,
                     "script_path": script_in_cmd or "",
@@ -387,7 +413,8 @@ def rebuild_jobs():
                     "schedule": str(job.slices),
                     "last_run": _fmt_mtime(log_path),
                     "last_run_epoch": last_modified_epoch(log_path),
-                    "log_path": str(log_path)
+                    "log_path": str(log_path),
+                    "run_until_success": bool(cfg.get("run_until_success", False))
                 }
             else:
                 jobs[name]["has_cron"] = True
