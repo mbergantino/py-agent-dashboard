@@ -1,117 +1,94 @@
-
 <!DOCTYPE html>
 <html>
-<head><title>Py Script Dashboard</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="/static/app.css">
-</head>
+
+<head>
+  <title>Py Script Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css"> </head>
+
 <body class="p-4">
-<div class="container-fluid px-2 px-md-3">
-<h1>🖥️ Py Script Dashboard</h1>
-<div class="d-flex gap-2 mb-3">
-  <a href="/add" class="btn btn-success">+ Add Script</a>
-  <form action="/add-sample" method="POST" class="d-inline">
-    <button type="submit" class="btn btn-outline-dark">Add Sample</button>
-  </form>
-  <!-- Service log shortcuts -->
-  <a href="/services" class="btn btn-outline-dark">Service Logs</a>
-</div>
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-<div class="table-responsive">
-  <table class="table align-middle">
-    <thead>
-      <tr>
-        <th>Script</th>
-        <th class="text-nowrap">Schedule</th>
-        <th class="text-nowrap">Last Run</th>
-        <th class="text-nowrap">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for job in jobs %}
-      <tr>
-        <td class="text-break script-cell">{{ job.name }}</td>
-        <td class="text-break"><span class="badge bg-light text-dark">{{ job.schedule or "DISABLED" }}</span></td>
-        <td class="last-run-cell">
-          {% if job.last_run_epoch is not none %}
-            <span class="utc-ts" data-epoch="{{ job.last_run_epoch }}"></span>
-          {% else %} Never {% endif %}
-        </td>
-        <td class="text-start">
-          <!-- md+ : full buttons -->
-          <div class="d-none d-md-inline-flex gap-1">
-            <a href="/run/{{ job.name }}" class="btn btn-sm btn-primary">Run</a>
-            <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a>
-            <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
-            <form method="POST" action="/purge/{{ job.name }}" class="d-inline"
-                  onsubmit="return confirm('Purge logs for {{ job.name }}?');">
-              <button class="btn btn-sm btn-outline-danger">Purge</button>
-            </form>
-            <form method="POST" action="/delete/{{ job.name }}" class="d-inline"
-                  onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
-              <button class="btn btn-sm btn-danger">Delete</button>
-            </form>
-          </div>
-          <!-- xs/sm : dropdown menu -->
-          <div class="dropdown d-inline-block d-md-none">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
-            <div class="dropdown-menu">
-              <a class="dropdown-item" href="/run/{{ job.name }}">Run</a>
-              <a class="dropdown-item" href="/view/{{ job.name }}">Logs</a>
-              <a class="dropdown-item" href="/edit/{{ job.name }}">Edit</a>
-              <form method="POST" action="/purge/{{ job.name }}"
-                    onsubmit="return confirm('Purge logs for {{ job.name }}?');">
-                <button class="dropdown-item text-danger" type="submit">Purge logs</button>
-              </form>
-              <form method="POST" action="/delete/{{ job.name }}"
-                    onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
-                <button class="dropdown-item text-danger" type="submit">Delete</button>
-              </form>
-            </div>
-          </div>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-</div>
-
-<script>
+  <div class="container-fluid px-2 px-md-3">
+    <h1>🖥️ Py Script Dashboard</h1>
+    <div class="d-flex gap-2 mb-3"> <a href="/add" class="btn btn-success">+ Add Script</a>
+      <form action="/add-sample" method="POST" class="d-inline">
+        <button type="submit" class="btn btn-outline-dark">Add Sample</button>
+      </form>
+      <!-- Service log shortcuts --><a href="/services" class="btn btn-outline-dark">Service Logs</a> </div> {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %} {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div> {% endfor %} {% endif %} {% endwith %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Script</th>
+            <th class="text-nowrap">Schedule</th>
+            <th class="text-nowrap">Last Run</th>
+            <th class="text-nowrap">Actions</th>
+          </tr>
+        </thead>
+        <tbody> {% for job in jobs %}
+          <tr>
+            <td class="text-break script-cell">{{ job.name }}</td>
+            <td class="text-break"><span class="badge bg-light text-dark">{{ job.schedule or "DISABLED" }}</span></td>
+            <td class="last-run-cell"> {% if job.last_run_epoch is not none %} <span class="utc-ts" data-epoch="{{ job.last_run_epoch }}"></span> {% else %} Never {% endif %} </td>
+            <td class="text-start">
+              <!-- md+ : full buttons -->
+              <div class="d-none d-md-inline-flex gap-1"> <a href="/run/{{ job.name }}" class="btn btn-sm btn-primary">Run</a> <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary">Logs</a> <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning">Edit</a>
+                <form method="POST" action="/purge/{{ job.name }}" class="d-inline" onsubmit="return confirm('Purge logs for {{ job.name }}?');">
+                  <button class="btn btn-sm btn-outline-danger">Purge</button>
+                </form>
+                <form method="POST" action="/delete/{{ job.name }}" class="d-inline" onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
+                  <button class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              </div>
+              <!-- xs/sm : dropdown menu -->
+              <div class="dropdown d-inline-block d-md-none">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
+                <div class="dropdown-menu"> <a class="dropdown-item" href="/run/{{ job.name }}">Run</a> <a class="dropdown-item" href="/view/{{ job.name }}">Logs</a> <a class="dropdown-item" href="/edit/{{ job.name }}">Edit</a>
+                  <form method="POST" action="/purge/{{ job.name }}" onsubmit="return confirm('Purge logs for {{ job.name }}?');">
+                    <button class="dropdown-item text-danger" type="submit">Purge logs</button>
+                  </form>
+                  <form method="POST" action="/delete/{{ job.name }}" onsubmit="return confirm('Delete {{ job.name }}.py, cron, and log?');">
+                    <button class="dropdown-item text-danger" type="submit">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </td>
+          </tr> {% endfor %} </tbody>
+      </table>
+    </div>
+  </div>
+  <script>
   function formatLocal(dt) {
-    const m = dt.getMonth() + 1;          // 1-12
-    const d = dt.getDate();               // 1-31
-    const y = dt.getFullYear();           // 2025
-    let h = dt.getHours();                // 0-23
+    const m = dt.getMonth() + 1; // 1-12
+    const d = dt.getDate(); // 1-31
+    const y = dt.getFullYear(); // 2025
+    let h = dt.getHours(); // 0-23
     const ampm = h >= 12 ? 'pm' : 'am';
-    h = h % 12 || 12;                     // 12-hour, no leading zero
+    h = h % 12 || 12; // 12-hour, no leading zero
     const min = String(dt.getMinutes()).padStart(2, '0');
     const sec = String(dt.getSeconds()).padStart(2, '0');
-    return `${m}/${d}/${y} ${h}:${min}:${sec}${ampm}`;   // e.g., 1/1/2025 2:05pm
+    return `${m}/${d}/${y} ${h}:${min}:${sec}${ampm}`; // e.g., 1/1/2025 2:05pm
   }
-
   document.querySelectorAll('.utc-ts').forEach(el => {
     const epoch = Number(el.dataset.epoch);
-    if (Number.isFinite(epoch)) {
-      const dt = new Date(epoch * 1000);  // epoch seconds -> ms
-      el.textContent = formatLocal(dt);   // browser local timezone
+    if(Number.isFinite(epoch)) {
+      const dt = new Date(epoch * 1000); // epoch seconds -> ms
+      el.textContent = formatLocal(dt); // browser local timezone
     } else {
       el.textContent = '';
     }
   });
-</script>
-<script>
+  </script>
+  <script>
   // Server tells us if there’s at least one scheduled job
-  const hasScheduled = {{ 'true' if has_scheduled else 'false' }};
-
-  if (hasScheduled) {
+  const hasScheduled = {
+    {
+      'true'
+      if has_scheduled
+      else 'false'
+    }
+  };
+  if(hasScheduled) {
     // refresh every 60s; tweak if you want
     const REFRESH_MS = 60000;
     setInterval(() => {
@@ -120,5 +97,7 @@
       location.reload();
     }, REFRESH_MS);
   }
-</script>
-</body></html>
+  </script>
+</body>
+
+</html>
