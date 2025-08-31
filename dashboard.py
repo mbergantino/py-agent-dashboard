@@ -424,8 +424,6 @@ def rebuild_jobs():
                 jobs[name]["has_cron"] = True
                 jobs[name]["schedule"] = str(job.slices)
 
-    print(jobs)
-
     # Stable order for table rendering
     return [jobs[k] for k in sorted(jobs.keys())]
 
