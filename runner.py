@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys, os, re, subprocess, runpy, importlib, ast, json, time
 from pathlib import Path
+from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = (BASE_DIR / "config").resolve()
@@ -11,7 +12,8 @@ PYTHON = sys.executable
 IS_ROOT = (os.geteuid() == 0)
 MAX_PASSES = int(os.getenv("RUNNER_MAX_PASSES", "50"))  # safety cap
 
-def log(msg): print(f"[runner] {msg}", flush=True)
+def log(msg):
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - - [runner] {msg}", flush=True)
 
 # ---- INSTALL DEPENDENCY FUNCTIONS ----
 def ensure_pip():
@@ -248,7 +250,6 @@ def main():
     #sys.exit(run_until_stable(script_path))
     name = Path(script_path).stem
     rc = run_until_stable(script_path)   # make this return the final exit code (0/!=0)
-    print(f"rc:{rc}")
 
     # If this was a cron-triggered run and the job succeeded, optionally disable cron
     if os.environ.get("RUN_CONTEXT") == "cron" and rc == 0 and read_run_until_success(name):
