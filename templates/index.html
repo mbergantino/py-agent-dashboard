@@ -81,13 +81,7 @@
   </script>
   <script>
   // Server tells us if there’s at least one scheduled job
-  const hasScheduled = {
-    {
-      'true'
-      if has_scheduled
-      else 'false'
-    }
-  };
+  const hasScheduled = {{ 'true' if has_scheduled else 'false' }};
   if(hasScheduled) {
     // refresh every 60s; tweak if you want
     const REFRESH_MS = 60000;
