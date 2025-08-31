@@ -13,6 +13,7 @@ MAX_PASSES = int(os.getenv("RUNNER_MAX_PASSES", "50"))  # safety cap
 
 def log(msg): print(f"[runner] {msg}", flush=True)
 
+# ---- INSTALL DEPENDENCY FUNCTIONS ----
 def ensure_pip():
     try:
         import pip  # noqa
@@ -163,6 +164,9 @@ def clear_module(modname: str):
         del sys.modules[top]
     importlib.invalidate_caches()
 
+
+# ---- EXECUTION FUNCTIONS ----
+
 def run_until_stable(path: str) -> int:
     """Keep retrying as long as the last attempt installed a missing dependency."""
     passes = 0
@@ -191,17 +195,12 @@ def run_until_stable(path: str) -> int:
             raise
         except SystemExit as se:
             # sys.exit(n) inside the script bubbles up here
-            code = se.code
-            if code is None: return 0
-            if isinstance(code, int): return code
-            return 1
+            return int(se.code or 0)
         except Exception as e:
             log(f"script crashed: {e}")
             return 1
     log("max passes reached; still failing due to cascading imports")
     return 1
-
-# SUPPORT CONFIG (FOR AUTO-DELETE ON SUCCESS)
 
 def read_run_until_success(name: str) -> bool:
     p = CONFIG_DIR / f"{name}.json"
@@ -249,6 +248,7 @@ def main():
     #sys.exit(run_until_stable(script_path))
     name = Path(script_path).stem
     rc = run_until_stable(script_path)   # make this return the final exit code (0/!=0)
+    print(f"rc:{rc}")
 
     # If this was a cron-triggered run and the job succeeded, optionally disable cron
     if os.environ.get("RUN_CONTEXT") == "cron" and rc == 0 and read_run_until_success(name):

@@ -7,7 +7,6 @@ from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = "pi-dashboard"
-user_cron = CronTab(user=True)
 
 BASE_DIR    = Path(__file__).resolve().parent
 SCRIPTS_DIR = (BASE_DIR / "scripts").resolve()
@@ -136,6 +135,8 @@ def run_now(name):
 
 @app.route("/edit/<name>", methods=["GET", "POST"])
 def edit(name):
+    user_cron = CronTab(user=True) # Refresh cron in case of updates from runner/user
+
     script_path = os.path.join(SCRIPTS_DIR, f"{name}.py")
     job = next((j for j in user_cron if j.comment == name), None)
     cfg = load_cfg(name)
@@ -219,6 +220,8 @@ def add_sample():
 
 @app.route("/delete/<name>", methods=["POST","DELETE"])
 def delete(name):
+    user_cron = CronTab(user=True) # Refresh cron in case of updates from runner/user
+
     script_path = os.path.join(SCRIPTS_DIR, f"{name}.py")
     log_path = os.path.join(LOGS_DIR, f"{name}.log")
     
@@ -372,6 +375,7 @@ def rebuild_jobs():
     Each dict has: name, script_path, has_script, has_cron, schedule, last_run, log_path
     """
     jobs = {}
+    user_cron = CronTab(user=True) # Refresh cron in case of updates from runner/user
 
     # 1) Start with every script on disk
     for script in sorted(SCRIPTS_DIR.glob("*.py")):
@@ -419,6 +423,8 @@ def rebuild_jobs():
             else:
                 jobs[name]["has_cron"] = True
                 jobs[name]["schedule"] = str(job.slices)
+
+    print(jobs)
 
     # Stable order for table rendering
     return [jobs[k] for k in sorted(jobs.keys())]
