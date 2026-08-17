@@ -637,7 +637,11 @@ function _setSepIcon() {
 }
 
 // Track last-known dragged size so togglePane can restore it
-let _lastPaneW = 220, _lastPaneH = 180;
+// Persisted per-job so each job remembers its own preferred layout
+const _PANE_KEY_W = 'paneW:' + JOB_SLUG;
+const _PANE_KEY_H = 'paneH:' + JOB_SLUG;
+let _lastPaneW = parseInt(localStorage.getItem(_PANE_KEY_W), 10) || 220;
+let _lastPaneH = parseInt(localStorage.getItem(_PANE_KEY_H), 10) || 180;
 
 function togglePane() {
   paneCollapsed = !paneCollapsed;
@@ -690,12 +694,14 @@ function initPaneState() {
       const h = Math.max(60, Math.min(500, clientY - panesRect.top));
       if (Math.abs(clientY - dragStartY) > DRAG_THRESHOLD) wasDragged = true;
       _lastPaneH = h;
+      localStorage.setItem(_PANE_KEY_H, h);
       leftPane.style.height = h + 'px';
       paneCollapsed = false; leftPane.classList.remove('collapsed');
     } else {
       const w = Math.max(100, Math.min(600, clientX - panesRect.left));
       if (Math.abs(clientX - dragStartX) > DRAG_THRESHOLD) wasDragged = true;
       _lastPaneW = w;
+      localStorage.setItem(_PANE_KEY_W, w);
       leftPane.style.width = w + 'px';
       document.documentElement.style.setProperty('--left-w', w + 'px');
       paneCollapsed = false; leftPane.classList.remove('collapsed');
