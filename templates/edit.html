@@ -1,61 +1,1655 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+  <meta charset="utf-8"/>
   <title>Edit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script>(function(){var t=localStorage.getItem('theme')||'auto';document.documentElement.setAttribute('data-bs-theme',t==='auto'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):t)})();</script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/static/app.css"> </head>
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🖥️%3C/text%3E%3C/svg%3E"/>
+  <style>
+  :root {
+    --editor-fs: 13px;
+    --editor-lh: 1.5;
+    --sep-bg: #d0d0d0;
+    --sep-w: 6px;
+    --left-w: 220px;
+  }
+  [data-bs-theme="dark"] {
+    --sep-bg: #444;
+  }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+  .page-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+  .header-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .config-section {
+    padding: 8px 12px 6px;
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+  }
+  .exec-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 2px solid var(--bs-border-color);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .exec-row input[type="text"] {
+    flex: 0 0 60%;
+    min-width: 150px;
+  }
+  @media (max-width: 767px) {
+    .exec-row input[type="text"] { flex: 1; }
+  }
+  .panes-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  /* ── Left pane ── */
+  .left-pane {
+    width: var(--left-w);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.2s ease;
+    border-right: none;
+  }
+  .left-pane.collapsed { width: 0; }
+  .pane-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    flex-shrink: 0;
+  }
+  .pane-title { font-weight: 600; font-size: var(--editor-fs); }
+  /* ── Separator ── */
+  .pane-sep {
+    width: var(--sep-w);
+    flex-shrink: 0;
+    background: var(--sep-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    user-select: none;
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-width: 767px) {
+    .pane-sep { cursor: row-resize; }
+  }
+  .left-pane.no-transition { transition: none !important; }
+  .pane-sep-icon {
+    font-size: 9px;
+    color: rgba(128,128,128,0.7);
+    line-height: 1;
+  }
+  /* ── File list ── */
+  .file-list { flex: 1; overflow-y: auto; }
+  .file-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.1s;
+    min-width: 0;
+  }
+  .file-row:hover { background: rgba(0,0,0,0.04); }
+  [data-bs-theme="dark"] .file-row:hover { background: rgba(255,255,255,0.06); }
+  .file-row.selected {
+    background: rgba(13,110,253,0.1);
+    border-left-color: #0d6efd;
+  }
+  .file-star {
+    width: 16px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #f5a623;
+    text-align: center;
+  }
+  .file-name {
+    flex: 1;
+    font-size: var(--editor-fs);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .file-name-input {
+    flex: 1;
+    font-size: var(--editor-fs);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid #0d6efd;
+    border-radius: 3px;
+    padding: 1px 4px;
+    min-width: 0;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+  .file-name-input.invalid { border-color: #dc3545; color: #dc3545; }
+  .file-icons {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+    opacity: 0.55;
+  }
+  .file-row:hover .file-icons { opacity: 1; }
+  .file-icon-btn {
+    background: none;
+    border: none;
+    padding: 1px 3px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--bs-body-color);
+    line-height: 1.4;
+  }
+  .file-icon-btn:hover { background: rgba(0,0,0,0.1); }
+  /* pencil icon: southwest-pointing (scaleX flip) */
+  .pencil-icon { display: inline-block; transform: scaleX(-1); }
+  .drop-indicator {
+    height: 2px;
+    background: #0d6efd;
+    margin: 0 4px;
+    border-radius: 1px;
+    display: none;
+  }
+  .drop-indicator.visible { display: block; }
+  /* yellow fade for newly added/uploaded files */
+  .file-row.highlight-new {
+    background: rgba(255,220,0,0.35) !important;
+    transition: background 3s ease-out;
+  }
+  .file-row.highlight-fade { background: transparent !important; }
+  /* empty instructions in left pane */
+  .left-empty {
+    padding: 16px 12px;
+    font-size: 12px;
+    color: var(--bs-secondary-color);
+    line-height: 1.6;
+  }
+  /* ── Right pane ── */
+  .right-pane {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .right-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .right-filename {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: var(--bs-body-color);
+  }
+  /* ── Editor area ── */
+  .editor-area {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  .line-nums {
+    width: 38px;
+    flex-shrink: 0;
+    padding: 8px 4px 8px 0;
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--editor-fs);
+    line-height: var(--editor-lh);
+    color: rgba(100,100,100,0.55);
+    border-right: 1px solid var(--bs-border-color);
+    overflow: hidden;
+    white-space: pre;
+    user-select: none;
+    background: var(--bs-body-bg);
+  }
+  .line-nums .err { color: #dc3545; }
+  #editor {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    padding: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--editor-fs);
+    line-height: var(--editor-lh);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    overflow-y: scroll;
+    white-space: pre;
+    tab-size: 4;
+  }
+  /* CSV / XLS */
+  .csv-toolbar { padding: 4px 8px; border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; }
+  .csv-table-wrap { flex: 1; overflow: auto; }
+  .csv-table-wrap table { font-size: var(--editor-fs); }
+  #xlsContent table { font-size: var(--editor-fs); }
+  /* Right empty state */
+  .right-empty {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 24px;
+  }
+  .instructions-box {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--bs-secondary-color);
+    max-width: 520px;
+  }
+  .instructions-box ul { padding-left: 20px; margin: 8px 0 0; }
+  /* Footer for unsaved file changes */
+  .right-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .unsaved-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #f5a623;
+    flex-shrink: 0;
+  }
+  /* Syntax error banner */
+  .err-banner {
+    padding: 4px 10px;
+    font-size: 11px;
+    color: #dc3545;
+    background: rgba(220,53,69,0.08);
+    border-top: 1px solid rgba(220,53,69,0.2);
+    flex-shrink: 0;
+  }
+  /* Prevent iOS auto-zoom on input focus (triggers when font-size < 16px) */
+  @media (max-width: 767px) {
+    #editor, input, textarea, select, .form-control { font-size: 16px !important; }
+    /* Cron input takes full row width so buttons wrap to their own scrollable line */
+    .cron-input { width: 100% !important; max-width: 100% !important; }
+    .cron-btns  { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  }
+  /* ── Mobile: stacked panes ── */
+  @media (max-width: 767px) {
+    .panes-wrap { flex-direction: column; }
+    .left-pane {
+      width: 100% !important;
+      height: 180px;
+      border-right: none;
+      border-bottom: none;
+      transition: height 0.2s ease;
+    }
+    .left-pane.collapsed { height: 0 !important; }
+    .left-pane.no-transition { transition: none !important; }
+    .pane-sep {
+      width: 100%;
+      height: var(--sep-w);
+      flex-direction: row;
+    }
+    .drag-handle { display: none; }
+  }
+  /* Syntax error line highlight in gutter */
+  .line-err { color: #dc3545 !important; }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
 
-<body class="p-4">
-  <div class="container">
-    <h3 class="mb-3">Edit: {{ name }}.py</h3>
-    <form method="POST" class="row g-3">
-      <div class="col-12">
-        <label class="form-label">Cron schedule</label>
-        <input type="text" name="schedule" class="form-control" value="{{ schedule }}" placeholder="*/5 * * * * or DISABLED">
-        <div class="form-text">Type a cron string or <code>DISABLED</code> to turn off scheduling.</div>
-        <!-- Optional: show quick tips as horizontal scroll on mobile -->
-        <div class="mt-3 d-flex overflow-auto gap-2">
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCron('* * * * *')">Every min</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCron('0 * * * *')">Hourly</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCron('0 0 * * *')">Daily 00:00</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCron('0 0 * * 0')">Sun 00:00</button>
-          <button type="button" class="btn btn-outline-danger btn-sm" onclick="setCron('DISABLED')">Disable</button>
-        </div>
-	<div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" id="run_until_success" name="run_until_success"
-           {% if run_until_success %}checked{% endif %}>
-          <label class="form-check-label" for="run_until_success">
-            Run on schedule until successful, then disable
-          </label>
-          <div class="form-text">Success = exit code 0; any nonzero keeps the schedule active.</div>
+  <!-- ══ HEADER ══ -->
+  <div class="header-bar">
+    {% if is_new %}
+      <h5 class="mb-0">New Job</h5>
+    {% else %}
+      <div id="name-view" class="d-flex align-items-center gap-1 min-width-0" style="min-width:0;flex:1;overflow:hidden">
+        <h5 class="mb-0 text-truncate" style="min-width:0">Edit <span id="display-name-text">{{ display_name }}</span></h5>
+        <button type="button" id="btn-pencil" class="btn btn-link p-0 text-secondary" aria-label="Rename job" title="Rename job">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" class="pencil-icon" viewBox="0 0 16 16">
+            <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+          </svg>
+        </button>
+      </div>
+      <div id="name-edit" class="d-none align-items-center">
+        <div class="input-group input-group-sm" style="width:460px;max-width:90vw">
+          <input type="text" id="name-input" class="form-control form-control-sm" value="{{ display_name }}">
+          <button type="button" id="btn-name-update" class="btn btn-success btn-sm">Update</button>
+          <button type="button" id="btn-name-cancel" class="btn btn-outline-secondary btn-sm">Cancel</button>
         </div>
       </div>
-      
-      <div class="col-12">
-        <label class="form-label">Script</label>
-        <textarea name="script" rows="18" class="form-control code" spellcheck="false">{{ content }}</textarea>
+    {% endif %}
+
+    <div class="theme-seg ms-auto d-none d-md-flex" id="themeToggle" role="group" aria-label="Color theme">
+      <button id="th-light" title="Light mode">☀️</button>
+      <button id="th-auto"  title="Follow system">Auto</button>
+      <button id="th-dark"  title="Dark mode">🌙</button>
+    </div>
+    <button id="th-cycle" class="btn btn-sm btn-outline-secondary ms-auto d-md-none" style="min-width:36px;min-height:32px;font-size:16px;flex-shrink:0" aria-label="Toggle color theme"></button>
+
+    {% if is_new %}
+      <button type="submit" form="editForm" class="btn btn-primary btn-sm">Create</button>
+      <a href="/" class="btn btn-secondary btn-sm">Cancel</a>
+    {% else %}
+      <button id="btn-save-file-top" type="button" class="btn btn-success btn-sm d-none" onclick="saveFileContent()">Save</button>
+      <button id="btn-revert-file-top" type="button" class="btn btn-outline-secondary btn-sm d-none" onclick="revertFileContent()">Revert</button>
+      <button id="btn-save-inline" type="button" class="btn btn-primary btn-sm d-none">Save</button>
+      <a id="btn-back" href="/" class="btn btn-secondary btn-sm d-inline-flex align-items-center">Back</a>
+      <button id="btn-revert" type="button" class="btn btn-outline-secondary btn-sm d-none">Revert</button>
+    {% endif %}
+  </div>
+
+  <!-- ══ CONFIG SECTION ══ -->
+  <div class="config-section">
+    <form method="POST" id="editForm">
+      {% if is_new %}
+      <div class="mb-2">
+        <label class="form-label mb-1 small" for="job_display_name">Job name</label>
+        <input type="text" id="job_display_name" name="job_display_name" class="form-control form-control-sm"
+               placeholder="e.g. My Job" value="{{ display_name }}" required autofocus style="max-width:320px">
       </div>
-      <div class="col-12 d-flex gap-2 stack-sm">
-        <button type="submit" class="btn btn-primary">Save</button> 
-	<a href="/" class="btn btn-secondary">Cancel</a>
+      {% endif %}
+      <div class="d-flex align-items-baseline gap-2 mb-1 flex-wrap">
+        <label class="form-label mb-0 small" for="scheduleInput"><b>Cron schedule</b></label>
+        <span class="form-text mt-0 small">Cron string or <code>DISABLED</code> · timezone: <strong>{{ tzname }}</strong></span>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+        <input type="text" name="schedule" id="scheduleInput" class="form-control form-control-sm cron-input"
+               style="width:auto;min-width:160px;max-width:220px" value="{{ schedule }}" placeholder="*/5 * * * *">
+        <div class="d-flex gap-2 cron-btns">
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" onclick="setCron('* * * * *')">Every min</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" id="btn-hourly">Hourly</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" onclick="setCron('0 0 * * *')">Daily</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" onclick="setCron('0 0 * * 0')">Weekly</button>
+          <button type="button" class="btn btn-outline-danger btn-sm flex-shrink-0" onclick="setCron('DISABLED')">Disable</button>
+        </div>
+      </div>
+      <div id="schedulePreview" class="form-text mt-0 mb-1 small"></div>
+      <div class="form-check mb-0">
+        <input class="form-check-input" type="checkbox" id="run_until_success" name="run_until_success"
+               {% if run_until_success %}checked{% endif %}>
+        <label class="form-check-label small" for="run_until_success">
+          Run on schedule until successful, then disable
+        </label>
       </div>
     </form>
   </div>
-  <script>
-  function setCron(expr) {
-    document.querySelector('input[name="schedule"]').value = expr;
+
+  <!-- ══ EXECUTION COMMAND ROW ══ -->
+  <div class="exec-row">
+    <input type="text" id="execCommand" name="exec_command" form="editForm"
+           class="form-control form-control-sm"
+           placeholder="Execution Command / Parameters  (e.g. python3 -u main.py  or  --verbose --output /tmp/out.csv)"
+           value="{{ exec_command }}">
+    <button type="button" id="btn-ai-key" class="btn btn-outline-secondary btn-sm"
+            title="Set AI authentication token" data-bs-toggle="modal" data-bs-target="#aiModal"
+            style="visibility:{% if has_ai_file %}visible{% else %}hidden{% endif %}">
+      🔑
+    </button>
+    <div class="ms-auto btn-group btn-group-sm" role="group" aria-label="Editor font size">
+      <button type="button" class="btn btn-outline-secondary fs-btn" data-size="11px">S</button>
+      <button type="button" class="btn btn-outline-secondary fs-btn active" data-size="13px">M</button>
+      <button type="button" class="btn btn-outline-secondary fs-btn" data-size="16px">L</button>
+    </div>
+  </div>
+
+  <!-- ══ SPLIT PANES ══ -->
+  <div class="panes-wrap" id="panesWrap">
+
+    <!-- Left pane: file list -->
+    <div class="left-pane" id="leftPane">
+      <div class="pane-header">
+        <span class="pane-title">Files</span>
+        <div class="ms-auto d-flex gap-1">
+          <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:11px"
+                  id="btn-upload" title="Upload file">↑ Upload</button>
+          <input type="file" id="uploadInput" style="display:none" multiple>
+          <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:11px"
+                  id="btn-add-file" title="Add new file">+ Add</button>
+        </div>
+      </div>
+      <div class="file-list" id="fileList" ondragover="onListDragOver(event)" ondrop="onListDrop(event)" ondragleave="onListDragLeave(event)">
+        <!-- rows injected by JS -->
+      </div>
+      <div id="leftEmpty" class="left-empty" style="display:none">
+        <strong>No files yet.</strong><br>
+        Use <em>↑ Upload</em> or <em>+ Add</em> above, or drag files here from your desktop.
+      </div>
+    </div>
+
+    <!-- Separator -->
+    <div class="pane-sep" id="paneSep">
+      <span class="pane-sep-icon" id="sepIcon">◀</span>
+    </div>
+
+    <!-- Right pane: editor / viewer -->
+    <div class="right-pane" id="rightPane">
+      <div class="right-header" id="rightHeader">
+        <span class="right-filename" id="rightFilename">No file selected</span>
+        <span id="csvToggle" class="d-none ms-2">
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary py-0 active" id="btn-csv-table" onclick="setCsvMode('table')">Table</button>
+            <button type="button" class="btn btn-outline-secondary py-0" id="btn-csv-raw"   onclick="setCsvMode('raw')">Raw</button>
+          </div>
+        </span>
+        <span id="rightErrBadge" class="ms-auto d-none badge text-bg-danger" style="font-size:11px"></span>
+      </div>
+
+      <!-- Text / CSV-raw editor -->
+      <div id="editorWrap" class="editor-area d-none">
+        <div class="line-nums" id="lineNums"></div>
+        <textarea id="editor" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+
+      <!-- CSV table view -->
+      <div id="csvTableWrap" class="d-none" style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div class="csv-table-wrap">
+          <table class="table table-sm table-bordered table-hover table-striped mb-0" id="csvTable"></table>
+        </div>
+      </div>
+
+      <!-- XLS view -->
+      <div id="xlsWrap" class="d-none" style="flex:1;overflow:auto;padding:8px">
+        <div id="xlsContent"></div>
+      </div>
+
+      <!-- Empty / instructions -->
+      <div id="rightEmpty" class="right-empty">
+        <div class="instructions-box">
+          <strong>Getting started</strong>
+          <ul>
+            <li>Add a file using <em>+ Add</em> or drag files into the left panel from your desktop.</li>
+            <li>Include the file extension so we know how to run it — e.g. <code>Main.py</code>, <code>script.sh</code>.</li>
+            <li>For Python and shell scripts, if you only need extra parameters enter them in the <em>Execution Command</em> field above (e.g. <code>--verbose</code>) or for a full custom command, include the filename too (e.g. <code>python3 -u main.py --flag</code>). 
+            <li>For Markdown/AI agent files, enter the complete CLI command.</li>
+            <li>Separate parameters with spaces; wrap values containing spaces in double quotes (e.g. <code>--output "/tmp/my file.csv"</code>).</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Syntax errors banner -->
+      <div id="errBanner" class="err-banner d-none"></div>
+
+      <!-- Unsaved file changes footer -->
+      <div id="rightFooter" class="right-footer d-none">
+        <span class="unsaved-dot"></span>
+        <span>Unsaved file changes</span>
+        <button type="button" class="btn btn-sm btn-primary py-0 ms-auto" onclick="saveFileContent()">Save</button>
+        <span class="text-muted" style="font-size:11px">Cmd/Ctrl+S</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AI Token Modal ══ -->
+<div class="modal fade" id="aiModal" tabindex="-1" aria-labelledby="aiModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="aiModalLabel">Set AI Authentication Token</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="aiPlatform">AI Platform</label>
+          <select class="form-select form-select-sm" id="aiPlatform">
+            <option value="ANTHROPIC_API_KEY">Anthropic / Claude → ANTHROPIC_API_KEY</option>
+            <option value="OPENAI_API_KEY">OpenAI / ChatGPT → OPENAI_API_KEY</option>
+            <option value="GITHUB_TOKEN">GitHub Copilot → GITHUB_TOKEN</option>
+            <option value="COPILOT_TOKEN">Microsoft Copilot → COPILOT_TOKEN</option>
+            <option value="GOOGLE_API_KEY">Google Gemini → GOOGLE_API_KEY</option>
+            <option value="__custom__">Custom…</option>
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="aiCustomVarWrap">
+          <label class="form-label" for="aiCustomVar">Environment variable name</label>
+          <input type="text" class="form-control form-control-sm" id="aiCustomVar" placeholder="MY_API_KEY">
+        </div>
+        <div class="mb-1">
+          <label class="form-label" for="aiToken">Token / API Key</label>
+          <input type="password" class="form-control form-control-sm" id="aiToken" placeholder="sk-…" autocomplete="off">
+        </div>
+        <div class="form-text text-muted"><i>Tokens are stored encrypted and cannot be retrieved once saved.<br/>Re-submit to replace.</i></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-save-token">Save Token</button>
+        <span id="tokenSaved" class="text-success small d-none">Saved ✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Constants from server ──────────────────────────────────────────────────
+const IS_NEW     = {{ 'true' if is_new else 'false' }};
+const JOB_SLUG   = {{ name | tojson }};
+const INIT_FILES = {{ files | tojson }};
+const INIT_AF    = {{ active_file | tojson }};
+
+// ── State ──────────────────────────────────────────────────────────────────
+let openFile    = null;   // filename currently loaded in editor
+let fileContent = {};     // {filename: originalContent} for dirty tracking
+let fileDirty   = false;
+let paneCollapsed = false;
+let csvMode     = 'table';
+let errLines    = new Set();
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const leftPane     = document.getElementById('leftPane');
+const paneSep      = document.getElementById('paneSep');
+const sepIcon      = document.getElementById('sepIcon');
+const fileList     = document.getElementById('fileList');
+const leftEmpty    = document.getElementById('leftEmpty');
+const editorWrap   = document.getElementById('editorWrap');
+const editor       = document.getElementById('editor');
+const lineNums     = document.getElementById('lineNums');
+const csvTableWrap = document.getElementById('csvTableWrap');
+const xlsWrap      = document.getElementById('xlsWrap');
+const rightEmpty   = document.getElementById('rightEmpty');
+const rightFooter  = document.getElementById('rightFooter');
+const errBanner    = document.getElementById('errBanner');
+const rightFilename = document.getElementById('rightFilename');
+const rightErrBadge = document.getElementById('rightErrBadge');
+const csvToggle    = document.getElementById('csvToggle');
+const scheduleInput = document.getElementById('scheduleInput');
+const previewBox    = document.getElementById('schedulePreview');
+const execInput     = document.getElementById('execCommand');
+
+// ── Pane collapse ──────────────────────────────────────────────────────────
+function isMobilePane() { return window.innerWidth < 768; }
+
+function _setSepIcon() {
+  sepIcon.textContent = paneCollapsed
+    ? (isMobilePane() ? '▼' : '▶')
+    : (isMobilePane() ? '▲' : '◀');
+}
+
+// Track last-known dragged size so togglePane can restore it
+let _lastPaneW = 220, _lastPaneH = 180;
+
+function togglePane() {
+  paneCollapsed = !paneCollapsed;
+  leftPane.classList.toggle('collapsed', paneCollapsed);
+  if (paneCollapsed) {
+    // Override any inline style to actually collapse
+    if (isMobilePane()) { leftPane.style.height = '0'; }
+    else                { leftPane.style.width  = '0'; }
+  } else {
+    // Restore last dragged (or default) size
+    if (isMobilePane()) { leftPane.style.height = _lastPaneH + 'px'; }
+    else {
+      leftPane.style.width = _lastPaneW + 'px';
+      document.documentElement.style.setProperty('--left-w', _lastPaneW + 'px');
+    }
   }
-  </script>
-  <script>
-  document.querySelectorAll('.preset').forEach(btn => {
+  _setSepIcon();
+}
+
+function initPaneState() {
+  if (!IS_NEW && INIT_AF) {
+    const ext = INIT_AF.split('.').pop().toLowerCase();
+    const sameExt = INIT_FILES.filter(f => f.split('.').pop().toLowerCase() === ext);
+    if (sameExt.length <= 1) {
+      paneCollapsed = true;
+      leftPane.classList.add('collapsed');
+      if (isMobilePane()) { leftPane.style.height = '0'; }
+      else                { leftPane.style.width  = '0'; }
+      _setSepIcon();
+      return;
+    }
+  }
+  _setSepIcon();
+}
+
+// ── Draggable separator ────────────────────────────────────────────────────
+(function() {
+  let wasDragged = false, dragStartX = 0, dragStartY = 0;
+  const DRAG_THRESHOLD = 6;
+
+  function startDrag(clientX, clientY) {
+    dragStartX = clientX; dragStartY = clientY;
+    wasDragged = false;
+    leftPane.classList.add('no-transition');
+  }
+
+  function doDrag(clientX, clientY) {
+    const panesRect = document.getElementById('panesWrap').getBoundingClientRect();
+    if (isMobilePane()) {
+      const h = Math.max(60, Math.min(500, clientY - panesRect.top));
+      if (Math.abs(clientY - dragStartY) > DRAG_THRESHOLD) wasDragged = true;
+      _lastPaneH = h;
+      leftPane.style.height = h + 'px';
+      paneCollapsed = false; leftPane.classList.remove('collapsed');
+    } else {
+      const w = Math.max(100, Math.min(600, clientX - panesRect.left));
+      if (Math.abs(clientX - dragStartX) > DRAG_THRESHOLD) wasDragged = true;
+      _lastPaneW = w;
+      leftPane.style.width = w + 'px';
+      document.documentElement.style.setProperty('--left-w', w + 'px');
+      paneCollapsed = false; leftPane.classList.remove('collapsed');
+    }
+    _setSepIcon();
+  }
+
+  function endDrag() {
+    leftPane.classList.remove('no-transition');
+    if (!wasDragged) togglePane();
+  }
+
+  paneSep.removeAttribute('onclick');
+  paneSep.removeAttribute('title');
+  paneSep.title = 'Drag to resize · Click to collapse';
+
+  paneSep.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startDrag(e.clientX, e.clientY);
+    const onMove = (e) => doDrag(e.clientX, e.clientY);
+    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); endDrag(); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  paneSep.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]; startDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  paneSep.addEventListener('touchmove', (e) => {
+    e.preventDefault(); const t = e.touches[0]; doDrag(t.clientX, t.clientY);
+  }, { passive: false });
+  paneSep.addEventListener('touchend', () => endDrag(), { passive: true });
+})();
+
+// ── File list rendering ────────────────────────────────────────────────────
+let fileOrder = [...INIT_FILES];
+
+function renderFileList() {
+  fileList.innerHTML = '';
+  leftEmpty.style.display = fileOrder.length === 0 ? '' : 'none';
+  fileOrder.forEach((fname, idx) => {
+    const row = buildFileRow(fname, idx === 0);
+    fileList.appendChild(row);
+  });
+  // Show/hide AI key button based on whether any .md file exists
+  const hasMd = fileOrder.some(f => f.toLowerCase().endsWith('.md'));
+  const keyBtn = document.getElementById('btn-ai-key');
+  if (keyBtn) keyBtn.style.visibility = hasMd ? 'visible' : 'hidden';
+}
+
+function buildFileRow(fname, isActive) {
+  const row = document.createElement('div');
+  row.className = 'file-row' + (fname === openFile ? ' selected' : '');
+  row.dataset.fname = fname;
+  row.draggable = true;
+
+  const star = document.createElement('span');
+  star.className = 'file-star';
+  star.textContent = isActive ? '★' : '';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'file-name';
+  nameSpan.textContent = fname;
+
+  const icons = document.createElement('span');
+  icons.className = 'file-icons';
+
+  // Rename button (pencil, southwest-pointing)
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'file-icon-btn';
+  renameBtn.title = 'Rename';
+  renameBtn.innerHTML = '<svg class="pencil-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>';
+  renameBtn.onclick = (e) => { e.stopPropagation(); startRename(row, fname); };
+
+  // Clone button (two overlapping pages, larger)
+  const cloneBtn = document.createElement('button');
+  cloneBtn.className = 'file-icon-btn';
+  cloneBtn.title = 'Clone';
+  cloneBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/></svg>';
+  cloneBtn.onclick = (e) => { e.stopPropagation(); startClone(fname); };
+
+  // Delete button (trash barrel)
+  const delBtn = document.createElement('button');
+  delBtn.className = 'file-icon-btn';
+  delBtn.title = 'Delete';
+  delBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>';
+  delBtn.onclick = (e) => { e.stopPropagation(); deleteFile(fname); };
+
+  icons.appendChild(renameBtn);
+  icons.appendChild(cloneBtn);
+  icons.appendChild(delBtn);
+
+  // Mobile up/down reorder buttons (hidden on desktop via CSS)
+  const mobileArrows = document.createElement('span');
+  mobileArrows.className = 'mobile-arrows d-flex d-md-none';
+  mobileArrows.style.cssText = 'gap:2px;margin-left:4px;flex-shrink:0';
+
+  const upBtn = document.createElement('button');
+  upBtn.className = 'file-icon-btn';
+  upBtn.title = 'Move up';
+  upBtn.innerHTML = '▲';
+  upBtn.style.cssText = 'font-size:10px;padding:1px 4px';
+  upBtn.onclick = async (e) => {
+    e.stopPropagation();
+    const i = fileOrder.indexOf(fname);
+    if (i <= 0) return;
+    [fileOrder[i - 1], fileOrder[i]] = [fileOrder[i], fileOrder[i - 1]];
+    renderFileList();
+    await persistFileOrder();
+  };
+
+  const downBtn = document.createElement('button');
+  downBtn.className = 'file-icon-btn';
+  downBtn.title = 'Move down';
+  downBtn.innerHTML = '▼';
+  downBtn.style.cssText = 'font-size:10px;padding:1px 4px';
+  downBtn.onclick = async (e) => {
+    e.stopPropagation();
+    const i = fileOrder.indexOf(fname);
+    if (i >= fileOrder.length - 1) return;
+    [fileOrder[i], fileOrder[i + 1]] = [fileOrder[i + 1], fileOrder[i]];
+    renderFileList();
+    await persistFileOrder();
+  };
+
+  mobileArrows.appendChild(upBtn);
+  mobileArrows.appendChild(downBtn);
+
+  row.appendChild(star);
+  row.appendChild(nameSpan);
+  row.appendChild(icons);
+  row.appendChild(mobileArrows);
+
+  row.addEventListener('click', () => loadFile(fname));
+
+  // Drag to reorder (desktop)
+  row.addEventListener('dragstart', onRowDragStart);
+  row.addEventListener('dragend',   onRowDragEnd);
+  row.addEventListener('dragover',  onRowDragOver);
+  row.addEventListener('dragleave', onRowDragLeave);
+  row.addEventListener('drop',      onRowDrop);
+
+  return row;
+}
+
+function highlightNewRow(fname) {
+  const row = fileList.querySelector(`[data-fname="${CSS.escape(fname)}"]`);
+  if (!row) return;
+  row.classList.add('highlight-new');
+  setTimeout(() => {
+    row.classList.remove('highlight-new');
+    row.classList.add('highlight-fade');
+    setTimeout(() => row.classList.remove('highlight-fade'), 3000);
+  }, 3000);
+}
+
+// ── Load file into editor ──────────────────────────────────────────────────
+async function loadFile(fname) {
+  if (fileDirty && openFile && !confirm(`Discard unsaved changes to "${openFile}"?`)) return;
+
+  openFile = fname;
+  fileDirty = false;
+  rightFooter.classList.add('d-none');
+  errBanner.classList.add('d-none');
+  rightErrBadge.classList.add('d-none');
+  errLines.clear();
+
+  fileList.querySelectorAll('.file-row').forEach(r => {
+    r.classList.toggle('selected', r.dataset.fname === fname);
+  });
+  rightFilename.textContent = fname;
+
+  hideAllEditorViews();
+
+  const ext = fname.split('.').pop().toLowerCase();
+
+  if (['xlsx','xls'].includes(ext)) {
+    xlsWrap.classList.remove('d-none');
+    xlsWrap.style.display = '';
+    const xlsContent = document.getElementById('xlsContent');
+    xlsContent.textContent = 'Loading…';
+    try {
+      const res  = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(fname)}`);
+      const data = await res.json();
+      if (data.type === 'xls') {
+        xlsContent.innerHTML = buildTableHTML(data.headers, data.rows);
+      } else if (data.type === 'xls_unavailable') {
+        xlsContent.innerHTML = `<div class="alert alert-info">${escHtml(data.message)}</div>`;
+      } else {
+        xlsContent.innerHTML = `<div class="alert alert-danger">${escHtml(data.message || 'Error loading file')}</div>`;
+      }
+    } catch(e) {
+      xlsContent.textContent = 'Error: ' + e;
+    }
+    return;
+  }
+
+  if (ext === 'csv') {
+    csvToggle.classList.remove('d-none');
+    const res  = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(fname)}`);
+    const text = await res.text();
+    fileContent[fname] = text;
+    editor.value = text;
+    updateLineNums();
+    if (csvMode === 'table') {
+      showCsvTable(text);
+    } else {
+      showCsvRaw();
+    }
+    return;
+  }
+
+  // Plain text / code
+  csvToggle.classList.add('d-none');
+  editorWrap.classList.remove('d-none');
+  editorWrap.style.display = '';
+
+  try {
+    const res  = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(fname)}`);
+    const text = await res.text();
+    fileContent[fname] = text;
+    editor.value = text;
+    updateLineNums();
+  } catch(e) {
+    editor.value = 'Error loading file: ' + e;
+  }
+}
+
+function hideAllEditorViews() {
+  editorWrap.classList.add('d-none');
+  csvTableWrap.classList.add('d-none');
+  xlsWrap.classList.add('d-none');
+  rightEmpty.style.display = 'none';
+  csvToggle.classList.add('d-none');
+}
+
+function showRightEmpty() {
+  hideAllEditorViews();
+  rightEmpty.style.display = '';
+}
+
+// ── CSV table / raw toggle ─────────────────────────────────────────────────
+function setCsvMode(mode) {
+  csvMode = mode;
+  document.getElementById('btn-csv-table').classList.toggle('active', mode === 'table');
+  document.getElementById('btn-csv-raw').classList.toggle('active', mode === 'raw');
+  if (mode === 'table') {
+    showCsvTable(editor.value);
+  } else {
+    showCsvRaw();
+  }
+}
+
+function showCsvTable(text) {
+  csvTableWrap.classList.remove('d-none');
+  csvTableWrap.style.display = '';
+  editorWrap.classList.add('d-none');
+  const rows = parseCSV(text);
+  const table = document.getElementById('csvTable');
+  if (!rows.length) { table.innerHTML = '<tr><td class="text-muted">Empty file</td></tr>'; return; }
+  const thead = document.createElement('thead');
+  const hrow = document.createElement('tr');
+  rows[0].forEach(h => { const th = document.createElement('th'); th.textContent = h; hrow.appendChild(th); });
+  thead.appendChild(hrow);
+  const tbody = document.createElement('tbody');
+  rows.slice(1).forEach(r => {
+    const tr = document.createElement('tr');
+    r.forEach(cell => { const td = document.createElement('td'); td.textContent = cell; tr.appendChild(td); });
+    tbody.appendChild(tr);
+  });
+  table.innerHTML = '';
+  table.appendChild(thead);
+  table.appendChild(tbody);
+}
+
+function showCsvRaw() {
+  csvTableWrap.classList.add('d-none');
+  editorWrap.classList.remove('d-none');
+  editorWrap.style.display = '';
+  updateLineNums();
+}
+
+function parseCSV(text) {
+  return text.trim().split('\n').map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur);
+    return cols;
+  });
+}
+
+function buildTableHTML(headers, rows) {
+  let h = '<table class="table table-sm table-bordered table-striped"><thead><tr>';
+  headers.forEach(c => { h += `<th>${escHtml(c)}</th>`; });
+  h += '</tr></thead><tbody>';
+  rows.forEach(r => {
+    h += '<tr>';
+    r.forEach(c => { h += `<td>${escHtml(c)}</td>`; });
+    h += '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+
+// ── Line numbers ───────────────────────────────────────────────────────────
+function updateLineNums() {
+  const lines = editor.value.split('\n');
+  const count = lines.length;
+  let html = '';
+  for (let i = 1; i <= count; i++) {
+    if (errLines.has(i)) {
+      html += `<span class="err">▶${i}</span>\n`;
+    } else {
+      html += i + '\n';
+    }
+  }
+  lineNums.innerHTML = html;
+}
+
+editor.addEventListener('input', () => {
+  updateLineNums();
+  checkFileDirty();
+});
+
+editor.addEventListener('scroll', () => {
+  lineNums.scrollTop = editor.scrollTop;
+});
+
+editor.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    saveFileContent();
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = editor.selectionStart, end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, s) + '    ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = s + 4;
+    checkFileDirty();
+  }
+});
+
+function checkFileDirty() {
+  const orig = fileContent[openFile] ?? '';
+  fileDirty = editor.value !== orig;
+  rightFooter.classList.toggle('d-none', !fileDirty);
+  const saveTop   = document.getElementById('btn-save-file-top');
+  const revertTop = document.getElementById('btn-revert-file-top');
+  const back      = document.getElementById('btn-back');
+  if (saveTop)   saveTop.classList.toggle('d-none', !fileDirty);
+  if (revertTop) revertTop.classList.toggle('d-none', !fileDirty);
+  if (back)      back.classList.toggle('d-none', fileDirty);
+}
+
+function revertFileContent() {
+  if (!openFile) return;
+  editor.value = fileContent[openFile] ?? '';
+  fileDirty = false;
+  updateLineNums();
+  rightFooter.classList.add('d-none');
+  const saveTop   = document.getElementById('btn-save-file-top');
+  const revertTop = document.getElementById('btn-revert-file-top');
+  const back      = document.getElementById('btn-back');
+  if (saveTop)   saveTop.classList.add('d-none');
+  if (revertTop) revertTop.classList.add('d-none');
+  if (back)      back.classList.remove('d-none');
+}
+
+// ── Save content ──────────────────────────────────────────────────────
+async function saveFileContent() {
+  if (!openFile) return;
+  const content = editor.value;
+  const ext = openFile.split('.').pop().toLowerCase();
+
+  try {
+    const res = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(openFile)}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({content})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      fileContent[openFile] = content;
+      fileDirty = false;
+      rightFooter.classList.add('d-none');
+      const saveTop   = document.getElementById('btn-save-file-top');
+      const revertTop = document.getElementById('btn-revert-file-top');
+      const back      = document.getElementById('btn-back');
+      if (saveTop)   saveTop.classList.add('d-none');
+      if (revertTop) revertTop.classList.add('d-none');
+      if (back)      back.classList.remove('d-none');
+
+      if (ext === 'py') {
+        validatePython(content);
+      } else {
+        errBanner.classList.add('d-none');
+        errLines.clear();
+        updateLineNums();
+      }
+    } else {
+      alert('Save failed: ' + (data.error || res.status));
+    }
+  } catch(e) {
+    alert('Save failed: ' + e);
+  }
+}
+
+async function validatePython(content) {
+  errBanner.classList.add('d-none');
+  errLines.clear();
+  rightErrBadge.classList.add('d-none');
+  try {
+    const res = await fetch(
+      `/api/validate-python/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(openFile)}`,
+      { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({content}) }
+    );
+    const data = await res.json();
+    if (data.valid) {
+      updateLineNums();  // clear any previous red line highlights
+      return;
+    }
+    if (!data.valid && data.errors && data.errors.length) {
+      data.errors.forEach(e => { if (e.line > 0) errLines.add(e.line); });
+      const msgs = data.errors.map(e => e.line > 0 ? `Line ${e.line}: ${e.message}` : e.message);
+      errBanner.textContent = '⚠ ' + msgs.join(' · ');
+      errBanner.classList.remove('d-none');
+      rightErrBadge.textContent = `${data.errors.length} error${data.errors.length > 1 ? 's' : ''}`;
+      rightErrBadge.classList.remove('d-none');
+      updateLineNums();
+    }
+  } catch(_) {}
+}
+
+// ── File operations ────────────────────────────────────────────────────────
+function _autoName(baseName, extFiles) {
+  const dot = baseName.lastIndexOf('.');
+  const stem = dot >= 0 ? baseName.slice(0, dot) : baseName;
+  const ext  = dot >= 0 ? baseName.slice(dot) : '';
+  if (!extFiles.has(baseName)) return baseName;
+  for (let i = 1; i < 100; i++) {
+    const candidate = `${stem}_${i}${ext}`;
+    if (!extFiles.has(candidate)) return candidate;
+  }
+  return baseName + '_new';
+}
+
+async function deleteFile(fname) {
+  if (!confirm(`Delete "${fname}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(
+      `/api/files/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(fname)}`,
+      { method: 'DELETE' }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      fileOrder = fileOrder.filter(f => f !== fname);
+      if (openFile === fname) { openFile = null; fileDirty = false; showRightEmpty(); rightFilename.textContent = 'No file selected'; }
+      renderFileList();
+    } else {
+      alert('Delete failed: ' + (data.error || res.status));
+    }
+  } catch(e) {
+    alert('Delete failed: ' + e);
+  }
+}
+
+function startRename(row, fname) {
+  const nameSpan = row.querySelector('.file-name');
+  const icons    = row.querySelector('.file-icons');
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'file-name-input';
+  inp.value = fname;
+  const existingNames = new Set(fileOrder);
+
+  inp.addEventListener('input', () => {
+    const invalid = /[<>:"/\\|?*\x00-\x1f]/.test(inp.value) || (existingNames.has(inp.value) && inp.value !== fname);
+    inp.classList.toggle('invalid', invalid);
+  });
+
+  inp.addEventListener('blur', async () => {
+    let newName = inp.value.trim();
+    if (!newName) newName = fname;
+    newName = newName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    if (newName === fname) { renderFileList(); return; }
+    if (existingNames.has(newName)) {
+      const dot = newName.lastIndexOf('.');
+      const stem = dot >= 0 ? newName.slice(0, dot) : newName;
+      const ext  = dot >= 0 ? newName.slice(dot) : '';
+      newName = _autoName(newName, existingNames);
+    }
+    try {
+      const res = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/rename`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({old: fname, new: newName})
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        const idx = fileOrder.indexOf(fname);
+        if (idx >= 0) fileOrder[idx] = newName;
+        if (openFile === fname) { openFile = newName; rightFilename.textContent = newName; }
+        if (fileContent[fname] !== undefined) { fileContent[newName] = fileContent[fname]; delete fileContent[fname]; }
+        renderFileList();
+      } else {
+        alert('Rename failed: ' + (data.error || res.status));
+        renderFileList();
+      }
+    } catch(e) {
+      alert('Rename failed: ' + e); renderFileList();
+    }
+  });
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') { inp.value = fname; inp.blur(); }
+  });
+
+  nameSpan.replaceWith(inp);
+  icons.style.display = 'none';
+  inp.focus(); inp.select();
+}
+
+async function startClone(fname) {
+  const dot  = fname.lastIndexOf('.');
+  const stem = dot >= 0 ? fname.slice(0, dot) : fname;
+  const ext  = dot >= 0 ? fname.slice(dot) : '';
+  const existing = new Set(fileOrder);
+  let destName = _autoName(`${stem}_1${ext}`, existing);
+
+  const idx = fileOrder.indexOf(fname);
+  fileOrder.splice(idx + 1, 0, '__adding__');
+  renderFileList();
+
+  const row = fileList.querySelectorAll('.file-row')[idx + 1];
+  if (!row) return;
+
+  const nameSpan = row.querySelector('.file-name');
+  const icons    = row.querySelector('.file-icons');
+  icons.style.display = 'none';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'file-name-input';
+  inp.value = destName;
+
+  inp.addEventListener('input', () => {
+    const invalid = /[<>:"/\\|?*\x00-\x1f]/.test(inp.value) || existing.has(inp.value);
+    inp.classList.toggle('invalid', invalid);
+  });
+
+  inp.addEventListener('blur', async () => {
+    let newName = inp.value.trim();
+    if (!newName) newName = destName;
+    newName = newName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    if (existing.has(newName)) newName = _autoName(newName, existing);
+
+    fileOrder = fileOrder.filter(f => f !== '__adding__');
+    try {
+      const res = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/clone`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source: fname, dest: newName})
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        fileOrder.splice(idx + 1, 0, newName);
+        renderFileList();
+        highlightNewRow(newName);
+      } else {
+        alert('Clone failed: ' + (data.error || res.status)); renderFileList();
+      }
+    } catch(e) { alert('Clone failed: ' + e); renderFileList(); }
+  });
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') { fileOrder = fileOrder.filter(f => f !== '__adding__'); renderFileList(); }
+  });
+
+  nameSpan.replaceWith(inp);
+  inp.focus(); inp.select();
+}
+
+// Add button
+document.getElementById('btn-add-file').addEventListener('click', () => {
+  const existing = new Set(fileOrder);
+  const defaultName = _autoName('Main.py', existing);
+  fileOrder.push('__adding__');
+  renderFileList();
+  const row = fileList.querySelectorAll('.file-row')[fileOrder.length - 1];
+  if (!row) return;
+  const nameSpan = row.querySelector('.file-name');
+  const icons    = row.querySelector('.file-icons');
+  icons.style.display = 'none';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'file-name-input';
+  inp.value = defaultName;
+  inp.addEventListener('input', () => {
+    const invalid = /[<>:"/\\|?*\x00-\x1f]/.test(inp.value) || existing.has(inp.value);
+    inp.classList.toggle('invalid', invalid);
+  });
+  inp.addEventListener('blur', async () => {
+    let newName = inp.value.trim();
+    fileOrder = fileOrder.filter(f => f !== '__adding__');
+    if (!newName) { renderFileList(); return; }
+    newName = newName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    if (existing.has(newName)) newName = _autoName(newName, existing);
+    if (!newName.includes('.')) {
+      alert('Without a file extension we cannot determine how to run this file.');
+    }
+    try {
+      const res = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/upload`, {
+        method: 'POST',
+        body: (() => { const fd = new FormData(); fd.append('file', new Blob([''], {type:'text/plain'}), newName); return fd; })()
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        fileOrder.push(data.name);
+        renderFileList();
+        highlightNewRow(data.name);
+        loadFile(data.name);
+      } else {
+        alert('Create failed: ' + (data.error || res.status)); renderFileList();
+      }
+    } catch(e) { alert('Create failed: ' + e); renderFileList(); }
+  });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') { fileOrder = fileOrder.filter(f => f !== '__adding__'); renderFileList(); }
+  });
+  nameSpan.replaceWith(inp);
+  inp.focus(); inp.select();
+});
+
+// Upload button
+document.getElementById('btn-upload').addEventListener('click', () => {
+  document.getElementById('uploadInput').click();
+});
+document.getElementById('uploadInput').addEventListener('change', async (e) => {
+  for (const file of e.target.files) {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    try {
+      const res = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/upload`, { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        if (!fileOrder.includes(data.name)) fileOrder.push(data.name);
+        renderFileList();
+        highlightNewRow(data.name);
+      }
+    } catch(e) { alert('Upload failed: ' + e); }
+  }
+  e.target.value = '';
+});
+
+// ── Drag-to-reorder ────────────────────────────────────────────────────────
+let dragSrc = null;
+
+function onRowDragStart(e) {
+  dragSrc = this.dataset.fname;
+  this.style.opacity = '0.4';
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onRowDragEnd(e) {
+  this.style.opacity = '';
+  fileList.querySelectorAll('.drop-indicator').forEach(d => d.remove());
+}
+function onRowDragOver(e) {
+  if (!dragSrc || this.dataset.fname === dragSrc) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  fileList.querySelectorAll('.drop-indicator').forEach(d => d.remove());
+  const rect = this.getBoundingClientRect();
+  const after = e.clientY > rect.top + rect.height / 2;
+  const ind = document.createElement('div');
+  ind.className = 'drop-indicator visible';
+  if (after) this.after(ind); else this.before(ind);
+}
+function onRowDragLeave(e) {
+  if (!this.contains(e.relatedTarget)) {
+    fileList.querySelectorAll('.drop-indicator').forEach(d => d.remove());
+  }
+}
+async function onRowDrop(e) {
+  e.preventDefault();
+  if (!dragSrc || this.dataset.fname === dragSrc || this.dataset.fname === '__adding__') return;
+  fileList.querySelectorAll('.drop-indicator').forEach(d => d.remove());
+  const rect = this.getBoundingClientRect();
+  const after = e.clientY > rect.top + rect.height / 2;
+  const srcIdx  = fileOrder.indexOf(dragSrc);
+  const destIdx = fileOrder.indexOf(this.dataset.fname);
+  if (srcIdx < 0 || destIdx < 0) return;
+  fileOrder.splice(srcIdx, 1);
+  const newDest = fileOrder.indexOf(this.dataset.fname);
+  fileOrder.splice(after ? newDest + 1 : newDest, 0, dragSrc);
+  renderFileList();
+  await persistFileOrder();
+}
+
+// Drag files FROM OS into left pane
+function onListDragOver(e) {
+  if (!e.dataTransfer.types.includes('Files')) return;
+  e.preventDefault();
+  fileList.style.background = 'rgba(13,110,253,0.08)';
+}
+function onListDragLeave(e) {
+  if (!fileList.contains(e.relatedTarget)) {
+    fileList.style.background = '';
+  }
+}
+async function onListDrop(e) {
+  if (!e.dataTransfer.files.length) return;
+  e.preventDefault();
+  fileList.style.background = '';
+  for (const file of e.dataTransfer.files) {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    try {
+      const res = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/upload`, { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        if (!fileOrder.includes(data.name)) fileOrder.push(data.name);
+        renderFileList();
+        highlightNewRow(data.name);
+      }
+    } catch(ex) { alert('Upload failed: ' + ex); }
+  }
+}
+
+async function persistFileOrder() {
+  try {
+    await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/order`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({order: fileOrder.filter(f => f !== '__adding__')})
+    });
+  } catch(_) {}
+}
+
+// ── Config dirty state (schedule / checkbox / exec_command) ───────────────
+{% if not is_new %}
+(function() {
+  const btnSave   = document.getElementById('btn-save-inline');
+  const btnBack   = document.getElementById('btn-back');
+  const btnRevert = document.getElementById('btn-revert');
+  const checkbox  = document.getElementById('run_until_success');
+  const slug      = {{ name | tojson }};
+
+  const savedSchedule = scheduleInput.value;
+  const savedChecked  = checkbox.checked;
+  const savedExec     = execInput.value;
+
+  function isConfigDirty() {
+    return scheduleInput.value !== savedSchedule
+        || checkbox.checked   !== savedChecked
+        || execInput.value    !== savedExec;
+  }
+  function setConfigDirty(dirty) {
+    btnSave.classList.toggle('d-none', !dirty);
+    btnBack.classList.toggle('d-none',  dirty);
+    btnRevert.classList.toggle('d-none', !dirty);
+  }
+  function checkConfig() { setConfigDirty(isConfigDirty()); }
+
+  scheduleInput.addEventListener('input', checkConfig);
+  scheduleInput.addEventListener('cronset', checkConfig);
+  checkbox.addEventListener('change', checkConfig);
+  execInput.addEventListener('input', checkConfig);
+
+  btnSave.addEventListener('click', async () => {
+    btnSave.disabled = true;
+    btnSave.textContent = 'Saving…';
+    try {
+      const fd = new FormData(document.getElementById('editForm'));
+      fd.set('schedule', scheduleInput.value);
+      fd.set('exec_command', execInput.value);
+      if (checkbox.checked) fd.set('run_until_success', 'on');
+      else fd.delete('run_until_success');
+      const res = await fetch(`/edit/${encodeURIComponent(slug)}`, { method: 'POST', body: fd });
+      if (res.ok) {
+        window.location.href = '/';
+      } else {
+        alert('Save failed.');
+      }
+    } catch(e) { alert('Save failed: ' + e); }
+    finally { btnSave.disabled = false; btnSave.textContent = 'Save'; }
+  });
+
+  btnRevert.addEventListener('click', () => {
+    scheduleInput.value = savedSchedule;
+    checkbox.checked    = savedChecked;
+    execInput.value     = savedExec;
+    updatePreview();
+    setConfigDirty(false);
+  });
+})();
+{% endif %}
+
+// ── Cron preview ───────────────────────────────────────────────────────────
+const jobName = {{ name | tojson }};
+
+function setCron(expr) {
+  scheduleInput.value = expr;
+  scheduleInput.dispatchEvent(new Event('cronset'));
+  updatePreview();
+}
+
+async function updatePreview() {
+  const expr = scheduleInput.value.trim();
+  if (!expr) { previewBox.textContent = ''; return; }
+  try {
+    const res  = await fetch(`/api/cron-preview?schedule=${encodeURIComponent(expr)}`, {cache:'no-store'});
+    const data = await res.json();
+    if (data.valid) {
+      previewBox.innerHTML = `Last: <strong>${data.prev}</strong><span class="d-none d-md-inline">&nbsp;|&nbsp;Next: <strong>${data.next}</strong></span><span class="d-md-none"><br>Next: <strong>${data.next}</strong></span>`;
+    } else {
+      previewBox.textContent = data.error || 'Schedule disabled.';
+    }
+  } catch(e) { previewBox.textContent = `Could not compute preview: ${e}`; }
+}
+
+let previewTimer = null;
+scheduleInput.addEventListener('input', () => {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 300);
+});
+
+let hourlyClickCount = 0;
+['btn-minutely','btn-daily','btn-weekly','btn-disabled'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => { hourlyClickCount = 0; });
+});
+document.getElementById('btn-hourly').addEventListener('click', async () => {
+  let minute = 0;
+  hourlyClickCount++;
+  if (hourlyClickCount % 2) {
+    try {
+      const res  = await fetch(`/api/next-hourly-minute?exclude=${encodeURIComponent(jobName)}`, {cache:'no-store'});
+      const data = await res.json();
+      if (typeof data.minute === 'number') minute = data.minute;
+    } catch(_) {}
+  }
+  setCron(`${minute} * * * *`);
+});
+updatePreview();
+
+// ── Job rename (title pencil) ──────────────────────────────────────────────
+{% if not is_new %}
+(function() {
+  const nameView   = document.getElementById('name-view');
+  const nameEdit   = document.getElementById('name-edit');
+  const displayTxt = document.getElementById('display-name-text');
+  const nameInput  = document.getElementById('name-input');
+  const slug       = {{ name | tojson }};
+
+  document.getElementById('btn-pencil').addEventListener('click', () => {
+    nameInput.value = displayTxt.textContent;
+    nameView.classList.add('d-none');
+    nameEdit.classList.remove('d-none');
+    nameEdit.classList.add('d-flex');
+    nameInput.focus(); nameInput.select();
+  });
+
+  function closeRename() {
+    nameView.classList.remove('d-none');
+    nameEdit.classList.add('d-none');
+    nameEdit.classList.remove('d-flex');
+  }
+
+  document.getElementById('btn-name-cancel').addEventListener('click', closeRename);
+
+  document.getElementById('btn-name-update').addEventListener('click', async () => {
+    const newName = nameInput.value.trim();
+    if (!newName) return;
+    const fd = new FormData();
+    fd.append('new_name', newName);
+    try {
+      const res = await fetch(`/rename/${encodeURIComponent(slug)}`, { method: 'POST', body: fd });
+      if (res.ok) { displayTxt.textContent = newName; closeRename(); }
+      else alert('Rename failed');
+    } catch(e) { alert('Rename failed: ' + e); }
+  });
+})();
+{% endif %}
+
+// ── Font size ──────────────────────────────────────────────────────────────
+(function() {
+  const KEY  = 'logFontSize';
+  const def  = '13px';
+  const btns = document.querySelectorAll('.fs-btn');
+  function setSize(px) {
+    document.documentElement.style.setProperty('--editor-fs', px);
+    btns.forEach(b => b.classList.toggle('active', b.dataset.size === px));
+  }
+  setSize(localStorage.getItem(KEY) || def);
+  btns.forEach(btn => {
     btn.addEventListener('click', () => {
-      const cron = btn.dataset.cron || '';
-      const input = document.querySelector('input[name="schedule"]');
-      if(input) input.value = cron;
+      setSize(btn.dataset.size || def);
+      localStorage.setItem(KEY, btn.dataset.size || def);
     });
   });
-  </script>
-</body>
+})();
 
+// ── Theme toggle ───────────────────────────────────────────────────────────
+(function(){
+  var CYCLE = ['auto','light','dark'];
+  var ICONS = { light:'☀️', auto:'🌓', dark:'🌙' };
+  var cycleBtn = document.getElementById('th-cycle');
+  function applyMode(mode) {
+    localStorage.setItem('theme', mode);
+    var eff = mode === 'auto' ? (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light') : mode;
+    document.documentElement.setAttribute('data-bs-theme', eff);
+    ['light','auto','dark'].forEach(function(m){
+      var el = document.getElementById('th-'+m);
+      if (el) el.classList.toggle('active', m === mode);
+    });
+    if (cycleBtn) cycleBtn.textContent = ICONS[mode];
+  }
+  ['light','auto','dark'].forEach(function(m){
+    var el = document.getElementById('th-'+m);
+    if (el) el.addEventListener('click', function(){ applyMode(m); });
+  });
+  if (cycleBtn) {
+    cycleBtn.addEventListener('click', function(){
+      var cur = localStorage.getItem('theme') || 'auto';
+      applyMode(CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length]);
+    });
+  }
+  applyMode(localStorage.getItem('theme') || 'auto');
+})();
+
+// ── AI Token Modal ─────────────────────────────────────────────────────────
+(function() {
+  const platform = document.getElementById('aiPlatform');
+  const customWrap = document.getElementById('aiCustomVarWrap');
+  if (!platform) return;
+  platform.addEventListener('change', () => {
+    customWrap.classList.toggle('d-none', platform.value !== '__custom__');
+  });
+  document.getElementById('btn-save-token').addEventListener('click', async () => {
+    const envVar = platform.value === '__custom__'
+      ? document.getElementById('aiCustomVar').value.trim()
+      : platform.value;
+    const token  = document.getElementById('aiToken').value.trim();
+    if (!envVar || !token) { alert('Please fill in all fields.'); return; }
+    try {
+      const res = await fetch(`/api/jobs/${encodeURIComponent(JOB_SLUG)}/auth-token`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({env_var: envVar, token})
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        document.getElementById('tokenSaved').classList.remove('d-none');
+        document.getElementById('aiToken').value = '';
+        setTimeout(() => {
+          document.getElementById('tokenSaved').classList.add('d-none');
+          bootstrap.Modal.getInstance(document.getElementById('aiModal'))?.hide();
+        }, 1200);
+      } else {
+        alert('Failed to save token: ' + (data.error || res.status));
+      }
+    } catch(e) { alert('Error: ' + e); }
+  });
+})();
+
+// ── Utility ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+initPaneState();
+renderFileList();
+
+if (!IS_NEW && INIT_AF && fileOrder.includes(INIT_AF)) {
+  loadFile(INIT_AF);
+} else if (!fileOrder.length) {
+  showRightEmpty();
+}
+</script>
+</body>
 </html>

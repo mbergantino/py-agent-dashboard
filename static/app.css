@@ -36,3 +36,47 @@ html { -webkit-text-size-adjust: 100%; }
   background:#f9f9f9; border:1px solid #ddd; border-radius:.5rem; padding:12px;
   white-space:pre-wrap; word-break:break-word; overflow:auto;
 }
+
+/* ── Dark mode overrides for hardcoded-background elements ── */
+[data-bs-theme="dark"] #logbox {
+  background: #161b22;
+  border-color: #30363d;
+  color: #e6edf3;
+}
+[data-bs-theme="dark"] .code-block {
+  background: #161b22;
+  border-color: #30363d;
+  color: #e6edf3;
+}
+
+/* ── Theme segmented toggle ── */
+.theme-seg {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bs-secondary-bg);
+  padding: 2px;
+  gap: 1px;
+}
+.theme-seg button {
+  background: none;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--bs-secondary-color);
+  transition: background .15s, color .15s;
+}
+.theme-seg button.active {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.theme-seg button:not(.active):hover {
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+}
