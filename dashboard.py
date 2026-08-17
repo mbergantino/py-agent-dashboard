@@ -19,7 +19,7 @@ JOBS_DIR    = (BASE_DIR / "jobs").resolve()
 LOGS_DIR    = (BASE_DIR / "logs").resolve()
 CONFIG_DIR  = (BASE_DIR / "config").resolve()
 BOOT_SYNC_DONE = False
-_running_procs: dict = {}  # slug -> Popen
+_running_procs = {}  # slug -> Popen
 
 IS_MAC     = (platform.system() == "Darwin")
 IS_LINUX   = (platform.system() == "Linux")
@@ -274,8 +274,10 @@ def add_sample():
 
 @app.route("/delete/<name>", methods=["POST","DELETE"])
 def delete(name):
+    cfg = load_cfg(name)
     job_dir  = _job_dir(name)
     log_file = LOGS_DIR / f"{name}.log"
+    display_name = cfg.get("display_name") or name.replace("_", " ")
 
     if job_dir.exists():
         shutil.rmtree(job_dir, ignore_errors=True)
@@ -296,7 +298,7 @@ def delete(name):
         try: cfgp.unlink()
         except Exception: pass
 
-    flash(f"Job '{name}' deleted", "warning")
+    flash(f"Job '{display_name}' deleted", "warning")
     return redirect(url_for("index"))
 
 # ── Edit job ──────────────────────────────────────────────────────────────────
@@ -366,10 +368,14 @@ def edit(name):
     af    = _active_file(name)
     has_ai_file = any(f.lower().endswith(".md") for f in files)
 
+    ai_token_saved_at = cfg.get("auth_token_saved_at")
+    ai_token_env = cfg.get("auth_token_env", "")
+
     return render_template("edit.html",
         is_new=False, name=name, display_name=display_name,
         files=files, active_file=af, exec_command=exec_command,
         has_ai_file=has_ai_file,
+        ai_token_saved_at=ai_token_saved_at, ai_token_env=ai_token_env,
         schedule=current_schedule, tzname=SYSTEM_TZ_NAME,
         run_until_success=bool(cfg.get("run_until_success", False)))
 
@@ -677,6 +683,7 @@ def api_set_auth_token(slug):
         cfg = load_cfg(slug)
         cfg["auth_token_enc"] = encrypted
         cfg["auth_token_env"] = env_var
+        cfg["auth_token_saved_at"] = int(time.time())
         save_cfg(slug, cfg)
         return jsonify({"ok": True})
     except Exception as e:

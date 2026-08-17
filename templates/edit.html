@@ -423,6 +423,11 @@
             style="visibility:{% if has_ai_file %}visible{% else %}hidden{% endif %}">
       🔑
     </button>
+    <span id="ai-token-status" class="text-muted small{% if not (has_ai_file and ai_token_saved_at|default(none)) %} d-none{% endif %}"
+          style="white-space:nowrap">
+      ✓ Token set
+      {% if ai_token_saved_at|default(none) %}<span class="utc-ts-token" data-epoch="{{ ai_token_saved_at }}"></span>{% endif %}
+    </span>
     <div class="ms-auto btn-group btn-group-sm" role="group" aria-label="Editor font size">
       <button type="button" class="btn btn-outline-secondary fs-btn" data-size="11px">S</button>
       <button type="button" class="btn btn-outline-secondary fs-btn active" data-size="13px">M</button>
@@ -439,18 +444,23 @@
         <span class="pane-title">Files</span>
         <div class="ms-auto d-flex gap-1">
           <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:11px"
-                  id="btn-upload" title="Upload file">↑ Upload</button>
+                  id="btn-upload" title="Upload file"{% if is_new %} disabled{% endif %}>↑ Upload</button>
           <input type="file" id="uploadInput" style="display:none" multiple>
           <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:11px"
-                  id="btn-add-file" title="Add new file">+ Add</button>
+                  id="btn-add-file" title="Add new file"{% if is_new %} disabled{% endif %}>+ Add</button>
         </div>
       </div>
       <div class="file-list" id="fileList" ondragover="onListDragOver(event)" ondrop="onListDrop(event)" ondragleave="onListDragLeave(event)">
         <!-- rows injected by JS -->
       </div>
       <div id="leftEmpty" class="left-empty" style="display:none">
+        {% if is_new %}
+        <strong>Save the job first.</strong><br>
+        Click <em>Create</em> above, then add files.
+        {% else %}
         <strong>No files yet.</strong><br>
         Use <em>↑ Upload</em> or <em>+ Add</em> above, or drag files here from your desktop.
+        {% endif %}
       </div>
     </div>
 
@@ -493,6 +503,7 @@
       <!-- Empty / instructions -->
       <div id="rightEmpty" class="right-empty">
         <div class="instructions-box">
+          {% if is_new %}<p class="text-muted small mb-2">Click <strong>Create</strong> above to save the job, then add files.</p>{% endif %}
           <strong>Getting started</strong>
           <ul>
             <li>Add a file using <em>+ Add</em> or drag files into the left panel from your desktop.</li>
@@ -1418,9 +1429,9 @@ async function persistFileOrder() {
   const checkbox  = document.getElementById('run_until_success');
   const slug      = {{ name | tojson }};
 
-  const savedSchedule = scheduleInput.value;
-  const savedChecked  = checkbox.checked;
-  const savedExec     = execInput.value;
+  let savedSchedule = scheduleInput.value;
+  let savedChecked  = checkbox.checked;
+  let savedExec     = execInput.value;
 
   function isConfigDirty() {
     return scheduleInput.value !== savedSchedule
@@ -1450,12 +1461,17 @@ async function persistFileOrder() {
       else fd.delete('run_until_success');
       const res = await fetch(`/edit/${encodeURIComponent(slug)}`, { method: 'POST', body: fd });
       if (res.ok) {
-        window.location.href = '/';
+        savedSchedule = scheduleInput.value;
+        savedChecked  = checkbox.checked;
+        savedExec     = execInput.value;
+        setConfigDirty(false);
+        btnSave.textContent = 'Saved ✓';
+        setTimeout(() => { btnSave.textContent = 'Save'; }, 1500);
       } else {
         alert('Save failed.');
       }
     } catch(e) { alert('Save failed: ' + e); }
-    finally { btnSave.disabled = false; btnSave.textContent = 'Save'; }
+    finally { btnSave.disabled = false; }
   });
 
   btnRevert.addEventListener('click', () => {
@@ -1625,6 +1641,16 @@ updatePreview();
       if (res.ok && data.ok) {
         document.getElementById('tokenSaved').classList.remove('d-none');
         document.getElementById('aiToken').value = '';
+        // Update the token status indicator
+        const statusEl = document.getElementById('ai-token-status');
+        if (statusEl) {
+          const epochSpan = statusEl.querySelector('.utc-ts-token') || document.createElement('span');
+          epochSpan.className = 'utc-ts-token';
+          epochSpan.dataset.epoch = Math.floor(Date.now() / 1000);
+          epochSpan.textContent = ' ' + fmtEpoch(Math.floor(Date.now() / 1000));
+          if (!statusEl.querySelector('.utc-ts-token')) statusEl.appendChild(epochSpan);
+          statusEl.classList.remove('d-none');
+        }
         setTimeout(() => {
           document.getElementById('tokenSaved').classList.add('d-none');
           bootstrap.Modal.getInstance(document.getElementById('aiModal'))?.hide();
@@ -1635,6 +1661,21 @@ updatePreview();
     } catch(e) { alert('Error: ' + e); }
   });
 })();
+
+// ── Epoch timestamp formatter ───────────────────────────────────────────────
+function fmtEpoch(epoch) {
+  const d = new Date(epoch * 1000);
+  const mo = d.getMonth() + 1, dy = d.getDate(), yr = d.getFullYear();
+  let h = d.getHours(), mi = String(d.getMinutes()).padStart(2,'0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${mo}/${dy}/${yr} ${h}:${mi} ${ampm}`;
+}
+// Render any server-rendered epoch spans
+document.querySelectorAll('.utc-ts-token[data-epoch]').forEach(el => {
+  const ep = parseInt(el.dataset.epoch, 10);
+  if (!isNaN(ep)) el.textContent = ' ' + fmtEpoch(ep);
+});
 
 // ── Utility ────────────────────────────────────────────────────────────────
 function escHtml(s) {

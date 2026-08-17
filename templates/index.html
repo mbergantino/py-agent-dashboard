@@ -84,7 +84,7 @@
             <td class="text-start">
               <!-- md+ : full buttons -->
               <div class="d-none d-md-inline-flex gap-1"> <a href="/run/{{ job.name }}" class="btn btn-sm btn-primary d-inline-flex align-items-center">Run</a> <a href="/view/{{ job.name }}" class="btn btn-sm btn-secondary d-inline-flex align-items-center">Logs</a> <a href="/edit/{{ job.name }}" class="btn btn-sm btn-warning d-inline-flex align-items-center">Edit</a>
-                <form method="POST" action="/delete/{{ job.name }}" class="d-inline" onsubmit="return confirm('Delete {{ job.name }} job folder, cron, and log?');">
+                <form method="POST" action="/delete/{{ job.name }}" class="d-inline" onsubmit="return confirm('Delete {{ job.display_name }} (along with all its data & settings)?');">
                   <button class="btn btn-sm btn-danger">Delete</button>
                 </form>
               </div>
