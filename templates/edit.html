@@ -662,7 +662,11 @@ function togglePane() {
 }
 
 function initPaneState() {
-  if (!IS_NEW && INIT_AF) {
+  const hasSavedW = !!localStorage.getItem(_PANE_KEY_W);
+  const hasSavedH = !!localStorage.getItem(_PANE_KEY_H);
+
+  if (!IS_NEW && INIT_AF && !hasSavedW && !hasSavedH) {
+    // No saved preference yet — auto-collapse when only one file of its type
     const ext = INIT_AF.split('.').pop().toLowerCase();
     const sameExt = INIT_FILES.filter(f => f.split('.').pop().toLowerCase() === ext);
     if (sameExt.length <= 1) {
@@ -673,6 +677,14 @@ function initPaneState() {
       _setSepIcon();
       return;
     }
+  }
+
+  // Apply saved (or default) size
+  if (isMobilePane()) {
+    leftPane.style.height = _lastPaneH + 'px';
+  } else {
+    leftPane.style.width = _lastPaneW + 'px';
+    document.documentElement.style.setProperty('--left-w', _lastPaneW + 'px');
   }
   _setSepIcon();
 }
