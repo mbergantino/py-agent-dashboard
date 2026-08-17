@@ -261,6 +261,15 @@
   .csv-table-wrap { flex: 1; overflow: auto; }
   .csv-table-wrap table { font-size: var(--editor-fs); }
   #xlsContent table { font-size: var(--editor-fs); }
+  .markdown-preview { flex: 1; overflow: auto; padding: 12px 16px; font-size: var(--editor-fs); line-height: 1.6; }
+  .markdown-preview h1,.markdown-preview h2,.markdown-preview h3 { margin-top: 1em; margin-bottom: .4em; }
+  .markdown-preview code { background: var(--bs-secondary-bg); padding: 1px 4px; border-radius: 3px; font-size: .9em; }
+  .markdown-preview pre { background: var(--bs-secondary-bg); padding: 10px; border-radius: 4px; overflow-x: auto; }
+  .markdown-preview pre code { background: none; padding: 0; }
+  .markdown-preview blockquote { border-left: 3px solid var(--bs-secondary-color); margin: 0; padding-left: 12px; color: var(--bs-secondary-color); }
+  .markdown-preview table { border-collapse: collapse; width: 100%; }
+  .markdown-preview th, .markdown-preview td { border: 1px solid var(--bs-border-color); padding: 4px 8px; }
+  .markdown-preview img { max-width: 100%; }
   /* Right empty state */
   .right-empty {
     flex: 1;
@@ -479,6 +488,12 @@
             <button type="button" class="btn btn-outline-secondary py-0" id="btn-csv-raw"   onclick="setCsvMode('raw')">Raw</button>
           </div>
         </span>
+        <span id="mdToggle" class="d-none ms-2">
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary py-0" id="btn-md-raw"     onclick="setMdMode('raw')">Raw</button>
+            <button type="button" class="btn btn-outline-secondary py-0 active" id="btn-md-preview" onclick="setMdMode('preview')">Preview</button>
+          </div>
+        </span>
         <span id="rightErrBadge" class="ms-auto d-none badge text-bg-danger" style="font-size:11px"></span>
       </div>
 
@@ -494,6 +509,9 @@
           <table class="table table-sm table-bordered table-hover table-striped mb-0" id="csvTable"></table>
         </div>
       </div>
+
+      <!-- Markdown preview -->
+      <div id="mdPreviewWrap" class="d-none markdown-preview"></div>
 
       <!-- XLS view -->
       <div id="xlsWrap" class="d-none" style="flex:1;overflow:auto;padding:8px">
@@ -569,6 +587,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script>
 // ── Constants from server ──────────────────────────────────────────────────
 const IS_NEW     = {{ 'true' if is_new else 'false' }};
@@ -582,6 +601,7 @@ let fileContent = {};     // {filename: originalContent} for dirty tracking
 let fileDirty   = false;
 let paneCollapsed = false;
 let csvMode     = 'table';
+let mdMode      = 'preview';
 let errLines    = new Set();
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
@@ -601,6 +621,8 @@ const errBanner    = document.getElementById('errBanner');
 const rightFilename = document.getElementById('rightFilename');
 const rightErrBadge = document.getElementById('rightErrBadge');
 const csvToggle    = document.getElementById('csvToggle');
+const mdToggle     = document.getElementById('mdToggle');
+const mdPreviewWrap = document.getElementById('mdPreviewWrap');
 const scheduleInput = document.getElementById('scheduleInput');
 const previewBox    = document.getElementById('schedulePreview');
 const execInput     = document.getElementById('execCommand');
@@ -886,8 +908,23 @@ async function loadFile(fname) {
     return;
   }
 
+  // Markdown
+  if (ext === 'md') {
+    mdToggle.classList.remove('d-none');
+    try {
+      const res  = await fetch(`/api/files/${encodeURIComponent(JOB_SLUG)}/${encodeURIComponent(fname)}`);
+      const text = await res.text();
+      fileContent[fname] = text;
+      editor.value = text;
+      updateLineNums();
+    } catch(e) {
+      editor.value = 'Error loading file: ' + e;
+    }
+    setMdMode(mdMode);
+    return;
+  }
+
   // Plain text / code
-  csvToggle.classList.add('d-none');
   editorWrap.classList.remove('d-none');
   editorWrap.style.display = '';
 
@@ -906,8 +943,27 @@ function hideAllEditorViews() {
   editorWrap.classList.add('d-none');
   csvTableWrap.classList.add('d-none');
   xlsWrap.classList.add('d-none');
+  mdPreviewWrap.classList.add('d-none');
   rightEmpty.style.display = 'none';
   csvToggle.classList.add('d-none');
+  mdToggle.classList.add('d-none');
+}
+
+function setMdMode(mode) {
+  mdMode = mode;
+  document.getElementById('btn-md-raw').classList.toggle('active', mode === 'raw');
+  document.getElementById('btn-md-preview').classList.toggle('active', mode === 'preview');
+  if (mode === 'preview') {
+    editorWrap.classList.add('d-none');
+    mdPreviewWrap.classList.remove('d-none');
+    mdPreviewWrap.innerHTML = typeof marked !== 'undefined'
+      ? marked.parse(editor.value)
+      : '<em>Markdown renderer not loaded.</em>';
+  } else {
+    mdPreviewWrap.classList.add('d-none');
+    editorWrap.classList.remove('d-none');
+    editorWrap.style.display = '';
+  }
 }
 
 function showRightEmpty() {
