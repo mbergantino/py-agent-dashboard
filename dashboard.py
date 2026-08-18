@@ -439,6 +439,8 @@ def _log_mtime_epoch(name: str) -> int:
         return 0
 
 def _launch_job(name: str):
+    cfg          = load_cfg(name)
+    display_name = cfg.get("display_name") or name.replace("_", " ")
     job_dir  = _job_dir(name)
     log_path = LOGS_DIR / f"{name}.log"
 
@@ -457,7 +459,7 @@ def _launch_job(name: str):
             cwd=str(job_dir), close_fds=True, env=env,
         )
     _running_procs[name] = proc
-    return True, f"Job '{name}' launched"
+    return True, f"Job '{display_name}' launched"
 
 # ── File management API ───────────────────────────────────────────────────────
 

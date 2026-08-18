@@ -313,7 +313,7 @@
   }
   /* Prevent iOS auto-zoom on input focus (triggers when font-size < 16px) */
   @media (max-width: 767px) {
-    #editor, input, textarea, select, .form-control { font-size: 16px !important; }
+    input, textarea:not(#editor), select, .form-control { font-size: 16px !important; }
     /* Cron input takes full row width so buttons wrap to their own scrollable line */
     .cron-input { width: 100% !important; max-width: 100% !important; }
     .cron-btns  { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
