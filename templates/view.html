@@ -14,13 +14,17 @@
     --log-font-size: 13px;
     --log-line-height: 1.35;
   }
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; }
+  .page-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   #logbox {
+    flex: 1;
+    min-height: 0;
     background: #f9f9f9;
     border: 1px solid #ccc;
     padding: 10px;
     white-space: pre;
     overflow: auto;
-    height: 70svh;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     font-size: var(--log-font-size);
     line-height: var(--log-line-height);
@@ -31,33 +35,34 @@
     color: #d4d4d4;
   }
   @media (max-width: 576px) {
-    #logbox { height: 70svh; }
     .btn, .form-control, .form-select { min-height: 44px; }
   }
   </style>
 </head>
 
 <body class="p-2 p-md-4">
-  <div class="container-fluid px-1 px-md-2">
-    <div class="d-flex align-items-center gap-2 mb-3">
-      <h2 class="mb-0">Log for {{ name }}</h2>
-      <div class="theme-seg ms-auto d-none d-md-flex" id="themeToggle" role="group" aria-label="Color theme">
+  <div class="container-fluid px-1 px-md-2 page-wrap">
+    <div class="d-flex align-items-center gap-2 mb-3" style="min-width:0">
+      <h2 class="mb-0 text-truncate" style="min-width:0;flex:1;font-size:clamp(1rem,4vw,1.5rem)">Log for {{ name }}</h2>
+      <div class="theme-seg flex-shrink-0 d-none d-md-flex" id="themeToggle" role="group" aria-label="Color theme">
         <button id="th-light" title="Light mode">☀️</button>
         <button id="th-auto"  title="Follow system">Auto</button>
         <button id="th-dark"  title="Dark mode">🌙</button>
       </div>
-      <button id="th-cycle" class="btn btn-sm btn-outline-secondary ms-auto d-md-none" style="min-width:36px;min-height:32px;font-size:16px;flex-shrink:0" aria-label="Toggle color theme"></button>
-      <a href="/" class="btn btn-secondary btn-sm d-inline-flex align-items-center">Back</a>
+      <button id="th-cycle" class="btn btn-sm btn-outline-secondary flex-shrink-0 d-md-none" style="min-width:36px;min-height:32px;font-size:16px" aria-label="Toggle color theme"></button>
+      <a href="/" class="btn btn-secondary btn-sm flex-shrink-0 d-inline-flex align-items-center">Back</a>
     </div>
     <div class="controls py-2 mb-2">
       <div class="d-flex flex-wrap align-items-center gap-2">
-        <button id="btn-refresh" class="btn btn-primary btn-sm">Refresh</button>
-        <div class="form-check">
+        <button id="btn-refresh" class="btn btn-primary btn-sm" title="Refresh">
+          <span class="d-none d-md-inline">Refresh</span><span class="d-md-none" aria-hidden="true">↺</span>
+        </button>
+        <div class="form-check d-none d-md-flex align-items-center mb-0">
           <input class="form-check-input" type="checkbox" id="auto" checked>
-          <label class="form-check-label" for="auto">Auto</label>
+          <label class="form-check-label ms-1" for="auto">Auto</label>
         </div>
-        <label class="m-0">Every</label>
-        <select id="interval" class="form-select form-select-sm" style="width:auto;">
+        <label class="m-0 d-none d-md-inline">Every</label>
+        <select id="interval" class="form-select form-select-sm d-none d-md-block" style="width:auto;">
           <option value="500">500ms</option>
           <option value="1000" selected>1s</option>
           <option value="3000">3s</option>
@@ -65,13 +70,15 @@
           <option value="10000">10s</option>
           <option value="30000">30s</option>
         </select>
-        <label class="m-0">Lines</label>
-        <input id="lines" type="number" class="form-control form-control-sm" style="width:90px;" value="500" min="50" step="50" />
-        <div class="form-check">
+        <label class="m-0 d-none d-md-inline">Lines</label>
+        <input id="lines" type="number" class="form-control form-control-sm d-none d-md-block" style="width:90px;" value="500" min="50" step="50" />
+        <div class="form-check d-none d-md-flex align-items-center mb-0">
           <input class="form-check-input" type="checkbox" id="follow" checked>
-          <label class="form-check-label" for="follow">Follow</label>
+          <label class="form-check-label ms-1" for="follow">Follow</label>
         </div>
-        <button id="btn-bottom" class="btn btn-outline-secondary btn-sm">Bottom</button>
+        <button id="btn-bottom" class="btn btn-outline-secondary btn-sm" title="Jump to bottom">
+          <span class="d-none d-md-inline">Bottom</span><span class="d-md-none" aria-hidden="true">↓</span>
+        </button>
         <div class="ms-auto d-flex align-items-center gap-2">
           <div class="btn-group btn-group-sm" role="group" aria-label="Log view mode">
             <button type="button" class="btn btn-outline-secondary view-btn active" data-view="raw">Raw</button>
@@ -205,12 +212,14 @@
     }
   });
 
+  const isMobile = () => window.innerWidth < 768;
+
   fetchLog();
-  startAuto();
+  if (!isMobile()) startAuto();
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { stopAuto(); }
-    else if (chkAuto.checked) { startAuto(); fetchLog(); }
+    else if (!isMobile() && chkAuto.checked) { startAuto(); fetchLog(); }
   });
   </script>
 

@@ -152,6 +152,32 @@ Each job's config is stored at `config/<slug>.json`:
 
 ---
 
+## Environment Variables
+
+Credentials and per-machine settings live in a `.env` file at the project root. Copy the template and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Used by | Description |
+|---|---|---|
+| `NOTIFY_SMTP_HOST` | all jobs | SMTP server (e.g. `smtp.gmail.com`) |
+| `NOTIFY_SMTP_PORT` | all jobs | SMTP port (default `587`) |
+| `NOTIFY_SMTP_USER` | all jobs | SMTP login / From address |
+| `NOTIFY_SMTP_PASSWORD` | all jobs | App password — see [Google App Passwords](https://myaccount.google.com/apppasswords) |
+| `NOTIFY_FROM_ADDR` | all jobs | From header (defaults to `NOTIFY_SMTP_USER`) |
+| `NOTIFY_DEFAULT_TO` | all jobs | Default recipient |
+| `RCCL_USERNAME` | watch_for_royal_price_changes_xls | Royal Caribbean account email |
+| `RCCL_PASSWORD` | watch_for_royal_price_changes_xls | Royal Caribbean account password |
+| `RCCL_VDS_ID` | watch_for_royal_price_changes_xls | Royal Caribbean VDS ID (UUID) |
+
+`runner.py` loads `.env` automatically at startup using a built-in parser — no `python-dotenv` dependency needed. Values already set in the shell or cron environment take precedence over the file.
+
+All jobs send email through the shared `email_notifier.py` module (`send_alert()`), so updating credentials in one place covers every job.
+
+---
+
 ## Security Notes
 
 * **Local only** — no authentication. Bind to `127.0.0.1` or firewall port 5001 if on a shared network.

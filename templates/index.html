@@ -36,8 +36,7 @@
              style="background:var(--bs-body-bg);border:1px solid var(--bs-border-color);font-size:12px;white-space:nowrap;display:none;z-index:200;min-width:160px"></div>
       </div>
     </div>
-    <div style="min-height:52px"> {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %} {% for category, message in messages %}
-    <div class="alert alert-{{ category }} mb-2">{{ message }}</div> {% endfor %} {% endif %} {% endwith %} </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="d-none d-md-block" style="min-height:52px">{% for category, message in messages %}<div class="alert alert-{{ category }} mb-2">{{ message }}</div>{% endfor %}</div><div class="d-md-none">{% for category, message in messages %}<div class="alert alert-{{ category }} mb-2">{{ message }}</div>{% endfor %}</div>{% else %}<div class="d-none d-md-block" style="min-height:52px"></div>{% endif %}{% endwith %}
     <div class="table-responsive">
       <table class="table align-middle">
         <thead>
@@ -92,7 +91,7 @@
               <div class="dropdown d-inline-block d-md-none">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" style="letter-spacing:1px">···</button>
                 <div class="dropdown-menu"> <a class="dropdown-item" href="/run/{{ job.name }}">Run</a> <a class="dropdown-item" href="/view/{{ job.name }}">Logs</a> <a class="dropdown-item" href="/edit/{{ job.name }}">Edit</a>
-                  <form method="DELETE" action="/delete/{{ job.name }}" onsubmit="return confirm('Delete {{ job.name }} job folder, cron, and log?');">
+                  <form method="POST" action="/delete/{{ job.name }}" onsubmit="return confirm('Delete {{ job.display_name }} (along with all its data & settings)?');">
                     <button class="dropdown-item text-danger" type="submit">Delete</button>
                   </form>
                 </div>

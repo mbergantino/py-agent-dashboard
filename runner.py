@@ -19,6 +19,20 @@ CONFIG_DIR = (BASE_DIR / "config").resolve()
 JOBS_DIR   = (BASE_DIR / "jobs").resolve()
 LOGS_DIR   = (BASE_DIR / "logs").resolve()
 
+# Make project root importable so jobs can `import email_notifier` etc.
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+# Load .env from project root if present (simple KEY=VALUE parser, no dotenv dep)
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    with open(_env_file) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 ALLOW_AUTO_INSTALL = True
 PYTHON   = sys.executable
 IS_ROOT  = (os.name == "posix" and hasattr(os, "geteuid") and os.geteuid() == 0)
@@ -404,6 +418,23 @@ def main():
         sys.exit(2)
 
     script_path = os.path.abspath(args[0])
+
+    # If the path no longer exists (e.g. old scripts/ dir renamed to jobs/),
+    # try to find the job by slug in the new jobs/ layout and run it that way.
+    if not os.path.exists(script_path):
+        stem = Path(script_path).stem
+        candidate = JOBS_DIR / stem / (stem + ".py")
+        if not candidate.exists():
+            # Also try any .py file in jobs/<stem>/
+            job_dir = JOBS_DIR / stem
+            py_files = list(job_dir.glob("*.py")) if job_dir.exists() else []
+            candidate = py_files[0] if py_files else None
+        if candidate and candidate.exists():
+            log(f"legacy path not found; redirecting to job slug '{stem}'")
+            sys.exit(run_job(stem))
+        log(f"script not found: {script_path}")
+        sys.exit(1)
+
     os.chdir(os.path.dirname(script_path) or ".")
     log(f"running script (legacy mode): {script_path}")
 
